@@ -19,6 +19,7 @@ from qfluentwidgets import CaptionLabel, setFont, Action #,RoundMenu
 from qfluentwidgets import FluentIcon as FIF
 from DyberPet.custom_widgets import SystemTray
 from .custom_roundmenu import RoundMenu
+from .extra_windows import Remindme
 
 from DyberPet.conf import *
 from DyberPet.utils import *
@@ -379,10 +380,6 @@ class PetWidget(QWidget):
 
     stopAllThread = Signal(name='stopAllThread')
 
-    taskUI_Timer_update = Signal(name="taskUI_Timer_update")
-    taskUI_task_end = Signal(name="taskUI_task_end")
-    single_pomo_done = Signal(name="single_pomo_done")
-
     refresh_acts = Signal(name='refresh_acts')
 
     def __init__(self, parent=None, curr_pet_name=None, pets=(), screens=[]):
@@ -677,49 +674,7 @@ class PetWidget(QWidget):
         vbox.setContentsMargins(0,0,0,0)
         vbox.setSpacing(0)
 
-        # 番茄时钟
-        h_box3 = QHBoxLayout()
-        h_box3.setContentsMargins(0,0,0,0)
-        h_box3.setAlignment(Qt.AlignBottom | Qt.AlignHCenter)
-        self.tomatoicon = QLabel(self)
-        self.tomatoicon.setFixedSize(statbar_h,statbar_h)
-        image = QPixmap()
-        image.load(os.path.join(basedir, 'res/icons/Tomato_icon.png'))
-        self.tomatoicon.setScaledContents(True)
-        self.tomatoicon.setPixmap(image)
-        self.tomatoicon.setAlignment(Qt.AlignBottom | Qt.AlignRight)
-        h_box3.addWidget(self.tomatoicon)
-        self.tomato_time = RoundBarBase(fill_color="#ef4e50", parent=self) #QProgressBar(self, minimum=0, maximum=25, objectName='PetTM')
-        self.tomato_time.setFormat('')
-        self.tomato_time.setValue(25)
-        self.tomato_time.setAlignment(Qt.AlignCenter)
-        self.tomato_time.hide()
-        self.tomatoicon.hide()
-        h_box3.addWidget(self.tomato_time)
-
-        # 专注时间
-        h_box4 = QHBoxLayout()
-        h_box4.setContentsMargins(0,status_margin,0,0)
-        h_box4.setAlignment(Qt.AlignBottom | Qt.AlignHCenter)
-        self.focusicon = QLabel(self)
-        self.focusicon.setFixedSize(statbar_h,statbar_h)
-        image = QPixmap()
-        image.load(os.path.join(basedir, 'res/icons/Timer_icon.png'))
-        self.focusicon.setScaledContents(True)
-        self.focusicon.setPixmap(image)
-        self.focusicon.setAlignment(Qt.AlignBottom | Qt.AlignRight)
-        h_box4.addWidget(self.focusicon)
-        self.focus_time = RoundBarBase(fill_color="#47c0d2", parent=self) #QProgressBar(self, minimum=0, maximum=0, objectName='PetFC')
-        self.focus_time.setFormat('')
-        self.focus_time.setValue(0)
-        self.focus_time.setAlignment(Qt.AlignCenter)
-        self.focus_time.hide()
-        self.focusicon.hide()
-        h_box4.addWidget(self.focus_time)
-
         vbox.addStretch()
-        vbox.addLayout(h_box3)
-        vbox.addLayout(h_box4)
 
         self.status_frame.setLayout(vbox)
         #self.status_frame.setStyleSheet("border : 2px solid blue")
@@ -773,6 +728,10 @@ class PetWidget(QWidget):
         else:
             self.cursor_dragged = self.cursor_user
 
+        # 备忘录窗口
+        self.remind_window = Remindme()
+        self.remind_window.close_remind.connect(self.show_remind)
+
     '''
     def _init_Inventory(self):
         self.items_data = ItemData(HUNGERSTR=settings.HUNGERSTR, FAVORSTR=settings.FAVORSTR)
@@ -812,16 +771,6 @@ class PetWidget(QWidget):
 
         #menu.addMenu(self.act_menu)
 
-
-        # Launch pet/partner
-        self.companion_menu = RoundMenu(self.tr("Call Partner"))
-        self.companion_menu.setIcon(QIcon(os.path.join(basedir,'res/icons/partner.svg')))
-
-        add_acts = [_build_act(name, self.companion_menu, self._add_pet) for name in pets]
-        self.companion_menu.addActions(add_acts)
-
-        #menu.addMenu(self.companion_menu)
-        #menu.addSeparator()
 
         # Change Character
         self.change_menu = RoundMenu(self.tr("Change Character"))
@@ -1013,14 +962,10 @@ class PetWidget(QWidget):
             #Action(FIF.MENU, self.tr('More Options'), triggered=self._show_right_menu),
             Action(QIcon(os.path.join(basedir,'res/icons/dashboard.svg')), self.tr('Dashboard'), triggered=self._show_dashboard),
             Action(QIcon(os.path.join(basedir,'res/icons/SystemPanel.png')), self.tr('System'), triggered=self._show_controlPanel),
+            Action(QIcon(os.path.join(basedir,'res/icons/Dialogue_icon.png')), self.tr('Memo'), triggered=self.show_remind),
         ])
         self.StatMenu.addSeparator()
 
-        self.StatMenu.addMenu(self.act_menu)
-        self.StatMenu.addMenu(self.companion_menu)
-        self.StatMenu.addMenu(self.change_menu)
-        self.StatMenu.addSeparator()
-        
         self.StatMenu.addActions([
             Action(FIF.POWER_BUTTON, self.tr('Exit'), triggered=self.quit),
         ])
@@ -1038,12 +983,6 @@ class PetWidget(QWidget):
         """
         # 光标位置弹出菜单
         self.StatMenu.popup(QCursor.pos()-QPoint(0, self.StatMenu.height()-20))
-
-    def _add_pet(self, pet_name: str):
-        pet_acc = {'name':'pet', 'pet_name':pet_name}
-        #self.setup_acc.emit(pet_acc, int(self.current_screen.topLeft().x() + random.uniform(0.4,0.7)*self.screen_width), self.pos().y())
-        # To accomodate any subpet that always follows main, change the position to top middle pos of pet
-        self.setup_acc.emit(pet_acc, int( self.pos().x() + self.width()/2 ), self.pos().y())
 
     def open_web(self, web_address):
         try:
@@ -1260,12 +1199,6 @@ class PetWidget(QWidget):
 
     def _setup_ui(self):
 
-        #bar_width = int(max(100*settings.size_factor, 0.5*self.pet_conf.width))
-        bar_width = int(max(100, 0.5*self.pet_conf.width))
-        bar_width = int(min(200, bar_width))
-        self.tomato_time.setFixedSize(bar_width, statbar_h-5)
-        self.focus_time.setFixedSize(bar_width, statbar_h-5)
-
         self.reset_size(setImg=False)
 
         settings.previous_img = settings.current_img
@@ -1317,7 +1250,7 @@ class PetWidget(QWidget):
     def reset_size(self, setImg=True):
         #self.setFixedSize((max(self.pet_hp.width()+statbar_h,self.pet_conf.width)+self.margin_value)*max(1.0,settings.tunable_scale),
         #                  (self.margin_value+4*statbar_h+self.pet_conf.height)*max(1.0, settings.tunable_scale))
-        self.setFixedSize( int(max(self.tomato_time.width()+statbar_h,self.pet_conf.width*settings.tunable_scale)),
+        self.setFixedSize( int(self.pet_conf.width*settings.tunable_scale),
                            int(2*statbar_h+self.pet_conf.height*settings.tunable_scale)
                          )
 
@@ -1368,10 +1301,6 @@ class PetWidget(QWidget):
 
     def _compensate_rewards(self):
         self.compensate_rewards.emit()
-        # Note user if App updates available
-        if settings.UPDATE_NEEDED:
-            self.register_notification("system",
-                                       self.tr("App update available! Please check System - Settings - Check Updates for detail."))
 
     def register_notification(self, note_type, message):
         self.setup_notification.emit(note_type, message)
@@ -1433,59 +1362,6 @@ class PetWidget(QWidget):
         self.fv_updated.emit(fv, fv_lvl)
 
 
-    def _change_time(self, status, timeleft):
-        if status not in ['tomato','tomato_start','tomato_rest','tomato_end',
-                          'focus_start','focus','focus_end','tomato_cencel','focus_cancel']:
-            return
-
-        if status in ['tomato','tomato_rest','tomato_end','focus','focus_end']:
-            self.taskUI_Timer_update.emit()
-
-        if status == 'tomato_start':
-            self.tomato_time.setMaximum(25)
-            self.tomato_time.setValue(timeleft)
-            self.tomato_time.setFormat('%s min'%(int(timeleft)))
-            #self.tomato_window.newTomato()
-        elif status == 'tomato_rest':
-            self.tomato_time.setMaximum(5)
-            self.tomato_time.setValue(timeleft)
-            self.tomato_time.setFormat('%s min'%(int(timeleft)))
-            self.single_pomo_done.emit()
-        elif status == 'tomato':
-            self.tomato_time.setValue(timeleft)
-            self.tomato_time.setFormat('%s min'%(int(timeleft)))
-        elif status == 'tomato_end':
-            self.tomato_time.setValue(0)
-            self.tomato_time.setFormat('')
-            #self.tomato_window.endTomato()
-            self.taskUI_task_end.emit()
-        elif status == 'tomato_cencel':
-            self.tomato_time.setValue(0)
-            self.tomato_time.setFormat('')
-
-        elif status == 'focus_start':
-            if timeleft == 0:
-                self.focus_time.setMaximum(1)
-                self.focus_time.setValue(0)
-                self.focus_time.setFormat('%s min'%(int(timeleft)))
-            else:
-                self.focus_time.setMaximum(timeleft)
-                self.focus_time.setValue(timeleft)
-                self.focus_time.setFormat('%s min'%(int(timeleft)))
-        elif status == 'focus':
-            self.focus_time.setValue(timeleft)
-            self.focus_time.setFormat('%s min'%(int(timeleft)))
-        elif status == 'focus_end':
-            self.focus_time.setValue(0)
-            self.focus_time.setMaximum(0)
-            self.focus_time.setFormat('')
-            #self.focus_window.endFocus()
-            self.taskUI_task_end.emit()
-        elif status == 'focus_cancel':
-            self.focus_time.setValue(0)
-            self.focus_time.setMaximum(0)
-            self.focus_time.setFormat('')
-
     def use_item(self, item_name):
         # Check if it's pet-required item
         if item_name == settings.required_item:
@@ -1520,14 +1396,6 @@ class PetWidget(QWidget):
             x = self.pos().x()+self.width()//2
             y = self.pos().y()+self.height()
             self.setup_acc.emit(accs, x, y)
-        
-        # Subpet
-        elif settings.items_data.item_dict[item_name]['item_type']=='subpet':
-            pet_acc = {'name':'subpet', 'pet_name':item_name}
-            x = self.pos().x()+self.width()//2
-            y = self.pos().y()+self.height()
-            self.setup_acc.emit(pet_acc, x, y)
-            return
 
         else:
             pass
@@ -1566,14 +1434,9 @@ class PetWidget(QWidget):
 
     def patpat(self):
         # 摸摸动画
-        if self.click_count >= 7:
-            self.bubble_manager.trigger_bubble("pat_frequent")
-        elif self.workers['Interaction'].interact != 'patpat':
-            if settings.focus_timer_on:
-                self.bubble_manager.trigger_bubble("pat_focus")
-            else:
-                self.workers['Animation'].pause()
-                self.workers['Interaction'].start_interact('patpat')
+        if self.workers['Interaction'].interact != 'patpat':
+            self.workers['Animation'].pause()
+            self.workers['Interaction'].start_interact('patpat')
 
         # 概率触发浮动的心心
         prob_num_0 = random.uniform(0, 1)
@@ -1702,73 +1565,6 @@ class PetWidget(QWidget):
             self.showing_comp = 0
     '''
 
-    def show_tomato(self):
-        if self.tomato_window.isVisible():
-            self.tomato_window.hide()
-
-        else:
-            self.tomato_window.move(max(self.current_screen.topLeft().y(),self.pos().x()-self.tomato_window.width()//2),
-                                    max(self.current_screen.topLeft().y(),self.pos().y()-self.tomato_window.height()))
-            self.tomato_window.show()
-
-        '''
-        elif self.tomato_clock.text()=="取消番茄时钟":
-            self.tomato_clock.setText("番茄时钟")
-            self.workers['Scheduler'].cancel_tomato()
-            self.tomatoicon.hide()
-            self.tomato_time.hide()
-        '''
-
-    def run_tomato(self, nt):
-        self.workers['Scheduler'].add_tomato(n_tomato=int(nt))
-        self.tomatoicon.show()
-        self.tomato_time.show()
-        settings.focus_timer_on = True
-
-    def cancel_tomato(self):
-        self.workers['Scheduler'].cancel_tomato()
-
-    def change_tomato_menu(self):
-        self.tomatoicon.hide()
-        self.tomato_time.hide()
-        settings.focus_timer_on = False
-
-    
-    def show_focus(self):
-        if self.focus_window.isVisible():
-            self.focus_window.hide()
-        
-        else:
-            self.focus_window.move(max(self.current_screen.topLeft().y(),self.pos().x()-self.focus_window.width()//2),
-                                   max(self.current_screen.topLeft().y(),self.pos().y()-self.focus_window.height()))
-            self.focus_window.show()
-
-
-    def run_focus(self, task, hs, ms):
-        if task == 'range':
-            if hs<=0 and ms<=0:
-                return
-            self.workers['Scheduler'].add_focus(time_range=[hs,ms])
-        elif task == 'point':
-            self.workers['Scheduler'].add_focus(time_point=[hs,ms])
-        self.focusicon.show()
-        self.focus_time.show()
-        settings.focus_timer_on = True
-
-    def pause_focus(self, state):
-        if state: # 暂停
-            self.workers['Scheduler'].pause_focus()
-        else: # 继续
-            self.workers['Scheduler'].resume_focus(int(self.focus_time.value()), int(self.focus_time.maximum()))
-
-
-    def cancel_focus(self):
-        self.workers['Scheduler'].cancel_focus(int(self.focus_time.maximum()-self.focus_time.value()))
-
-    def change_focus_menu(self):
-        self.focusicon.hide()
-        self.focus_time.hide()
-        settings.focus_timer_on = False
 
 
     def show_remind(self):
@@ -1896,9 +1692,6 @@ class PetWidget(QWidget):
         self.workers['Scheduler'].sig_settext_sche.connect(self.register_notification) #_set_dialogue_dp)
         self.workers['Scheduler'].sig_setact_sche.connect(self._show_act)
         self.workers['Scheduler'].sig_setstat_sche.connect(self._change_status)
-        self.workers['Scheduler'].sig_focus_end.connect(self.change_focus_menu)
-        self.workers['Scheduler'].sig_tomato_end.connect(self.change_tomato_menu)
-        self.workers['Scheduler'].sig_settime_sche.connect(self._change_time)
         self.workers['Scheduler'].sig_addItem_sche.connect(self.add_item)
         self.workers['Scheduler'].sig_setup_bubble.connect(self._process_greeting_mssg)
 

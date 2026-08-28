@@ -1,10 +1,9 @@
 # coding:utf-8
 import os
 import json
-import urllib.request
 from sys import platform
 
-from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, HyperlinkCard,InfoBar,
+from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, InfoBar,
                             ComboBoxSettingCard, ScrollArea, ExpandLayout, InfoBarPosition,
                             setThemeColor)
 
@@ -120,16 +119,6 @@ class SettingInterface(ScrollArea):
 
         # Notification parameters ======================================================================
         self.VolumnGroup = SettingCardGroup(self.tr('Notification'), self.scrollWidget)
-        self.VolumnCard = Dyber_RangeSettingCard(
-            0, 10, 0.1,
-            QIcon(os.path.join(basedir, 'res/icons/system/speaker.svg')),
-            self.tr("Volumn"),
-            self.tr("Volumn of notification and pet"),
-            parent=self.VolumnGroup
-        )
-        self.VolumnCard.setValue(int(settings.volume*10))
-        self.VolumnCard.slider.valueChanged.connect(self._VolumnChanged)
-
         self.AllowToasterCard = SwitchSettingCard(
             QIcon(os.path.join(basedir, 'res/icons/system/popup.svg')),
             self.tr("Pop-up Toaster"),
@@ -156,26 +145,20 @@ class SettingInterface(ScrollArea):
 
         # Personalization ==============================================================================
         self.PersonalGroup = SettingCardGroup(self.tr('Personalization'), self.scrollWidget)
-        self.ScaleCard = Dyber_RangeSettingCard(
-            1, 50, 0.1,
+        # 桌宠大小三档选择：小=200px(0.5)、中=300px(0.75)、大=400px(1.0)
+        self.pet_size_scales = [0.5, 0.75, 1.0]
+        self.pet_size_texts = self._get_pet_size_texts()
+        self.PetSizeCard = Dyber_ComboBoxSettingCard(
+            self.pet_size_texts,
+            self.pet_size_texts,
             QIcon(os.path.join(basedir, 'res/icons/system/resize.svg')),
-            self.tr("Pet Scale"),
-            self.tr("Adjust size of the pet"),
+            self._get_pet_size_title(),
+            self._get_pet_size_subtitle(),
             parent=self.PersonalGroup
         )
-        self.ScaleCard.setValue(int(settings.tunable_scale*10))
-        self.ScaleCard.slider.valueChanged.connect(self._ScaleChanged)
-
-        pet_list = settings.pets
-        self.DefaultPetCard = Dyber_ComboBoxSettingCard(
-            pet_list,
-            pet_list,
-            QIcon(os.path.join(basedir, 'res/icons/system/homestar.svg')),
-            self.tr('Default Pet'),
-            self.tr('Pet to show everytime App starts'),
-            parent=self.PersonalGroup
-        )
-        self.DefaultPetCard.comboBox.currentTextChanged.connect(self._DefaultPetChanged)
+        # 根据当前缩放系数设置下拉当前档位
+        self.PetSizeCard.comboBox.setCurrentIndex(self._scale_to_index(settings.tunable_scale))
+        self.PetSizeCard.comboBox.currentTextChanged.connect(self._PetSizeChanged)
 
         lang_choices = list(settings.lang_dict.keys())
         lang_now = lang_choices[list(settings.lang_dict.values()).index(settings.language_code)]
@@ -198,36 +181,6 @@ class SettingInterface(ScrollArea):
             self.PersonalGroup
         )
         self.themeColorCard.colorChanged.connect(self.colorChanged)
-
-        # About ==============================================================================
-        self.aboutGroup = SettingCardGroup(self.tr('About'), self.scrollWidget)
-        update_needed, update_text = self._checkUpdate()
-        settings.UPDATE_NEEDED = update_needed
-        self.aboutCard = HyperlinkCard(
-            settings.RELEASE_URL,
-            self.tr('Release Website'),
-            QIcon(os.path.join(basedir, 'res/icons/system/update.svg')),
-            self.tr('Check Updates'),
-            update_text, #self.tr('Check update and learn more about the project on our GitHub page'),
-            self.aboutGroup
-        )
-        self.helpCard = HyperlinkCard(
-            settings.HELP_URL,
-            self.tr('Issue Page'),
-            FIF.HELP,
-            self.tr('Help & Issue'),
-            self.tr('Post your issue or question on our GitHub Issue, or contact us on BiliBili'),
-            self.aboutGroup
-        )
-        self.devCard = HyperlinkCard(
-            settings.DEVDOC_URL,
-            self.tr('Developer Document'),
-            QIcon(os.path.join(basedir, 'res/icons/system/document.svg')),
-            self.tr('Re-development'),
-            self.tr('If you want to develop your own pet/item/actions... Check here'),
-            self.aboutGroup
-        )
-
 
         self.__initWidget()
 
@@ -257,18 +210,12 @@ class SettingInterface(ScrollArea):
         self.InteractionGroup.addSettingCard(self.GravityCard)
         self.InteractionGroup.addSettingCard(self.DragCard)
 
-        self.VolumnGroup.addSettingCard(self.VolumnCard)
         self.VolumnGroup.addSettingCard(self.AllowToasterCard)
         self.VolumnGroup.addSettingCard(self.AllowBubbleCard)
 
-        self.PersonalGroup.addSettingCard(self.ScaleCard)
-        self.PersonalGroup.addSettingCard(self.DefaultPetCard)
+        self.PersonalGroup.addSettingCard(self.PetSizeCard)
         self.PersonalGroup.addSettingCard(self.languageCard)
         self.PersonalGroup.addSettingCard(self.themeColorCard)
-
-        self.aboutGroup.addSettingCard(self.aboutCard)
-        self.aboutGroup.addSettingCard(self.helpCard)
-        self.aboutGroup.addSettingCard(self.devCard)
 
         # add setting card group to layout
         self.expandLayout.setSpacing(28)
@@ -278,7 +225,6 @@ class SettingInterface(ScrollArea):
         self.expandLayout.addWidget(self.InteractionGroup)
         self.expandLayout.addWidget(self.VolumnGroup)
         self.expandLayout.addWidget(self.PersonalGroup)
-        self.expandLayout.addWidget(self.aboutGroup)
 
     def __setQss(self):
         """ set style sheet """
@@ -321,22 +267,55 @@ class SettingInterface(ScrollArea):
         settings.fixdragspeedx, settings.fixdragspeedy = value*0.01, value*0.01
         settings.save_settings()
 
-    def _VolumnChanged(self, value):
-        settings.volume = round(value*0.1, 3)
-        settings.save_settings()
+    def _is_chinese(self):
+        """当前是否中文界面"""
+        lang = settings.language_code
+        return bool(lang and lang.startswith('zh'))
 
-    def _ScaleChanged(self, value):
-        settings.tunable_scale = value*0.1
+    def _get_pet_size_texts(self):
+        """根据当前语言返回桌宠大小三档的显示文本"""
+        if self._is_chinese():
+            return ['小 (200px)', '中 (300px)', '大 (400px)']
+        return ['Small (200px)', 'Medium (300px)', 'Large (400px)']
+
+    def _get_pet_size_title(self):
+        """根据当前语言返回桌宠大小卡片的标题"""
+        if self._is_chinese():
+            return '桌宠大小'
+        return 'Pet Size'
+
+    def _get_pet_size_subtitle(self):
+        """根据当前语言返回桌宠大小卡片的说明文字"""
+        if self._is_chinese():
+            return '选择桌宠的显示大小'
+        return 'Select the display size of the pet'
+
+    def _scale_to_index(self, scale_value):
+        """将缩放系数映射到档位索引，就近匹配三档（0.5/0.75/1.0）"""
+        closest = min(range(len(self.pet_size_scales)),
+                      key=lambda i: abs(self.pet_size_scales[i] - scale_value))
+        return closest
+
+    def _PetSizeChanged(self, text):
+        idx = self.pet_size_texts.index(text)
+        settings.tunable_scale = self.pet_size_scales[idx]
         settings.scale_dict[settings.petname] = settings.tunable_scale
         settings.save_settings()
         self.scale_changed.emit()
 
     def _update_scale(self):
-        self.ScaleCard.setValue(int(settings.tunable_scale*10))
-
-    def _DefaultPetChanged(self, value):
-        settings.default_pet = value
-        settings.save_settings()
+        # 语言切换后同步刷新三档下拉的显示文本、卡片标题与说明
+        new_texts = self._get_pet_size_texts()
+        if new_texts != self.pet_size_texts:
+            self.pet_size_texts = new_texts
+            combo = self.PetSizeCard.comboBox
+            combo.blockSignals(True)
+            combo.clear()
+            combo.addItems(self.pet_size_texts)
+            combo.blockSignals(False)
+        self.PetSizeCard.setTitle(self._get_pet_size_title())
+        self.PetSizeCard.setContent(self._get_pet_size_subtitle())
+        self.PetSizeCard.comboBox.setCurrentIndex(self._scale_to_index(settings.tunable_scale))
 
     def _LanguageChanged(self, value):
         settings.language_code = settings.lang_dict[value]
@@ -361,18 +340,6 @@ class SettingInterface(ScrollArea):
         settings.themeColor = color_str
         settings.save_settings()
 
-    def _checkUpdate(self):
-        local_version = settings.VERSION
-        success, github_version = get_latest_version()
-        if success:
-            update_needed = compare_versions(local_version, github_version)
-            if update_needed:
-                return True, local_version + "  " + self.tr("New version available")
-            else:
-                return False, local_version + "  " + self.tr("Already the latest")
-        else:
-            return False, self.tr("Failed to check updates. Please check the website.")
-        
     def _AllowToasterChanged(self, isChecked):
         if isChecked:
             settings.toaster_on = True
@@ -391,37 +358,3 @@ class SettingInterface(ScrollArea):
 
 
 
-def get_latest_version():
-    url = settings.RELEASE_API
-    try:
-        with urllib.request.urlopen(url) as response:
-            data = json.loads(response.read())
-            return True, data['tag_name']
-    except Exception as e:
-        return False, None
-
-def compare_versions(local_version, github_version):
-    # Remove 'v' prefix from version strings
-    local_version = local_version.lstrip('v')
-    github_version = github_version.lstrip('v')
-
-    # Split version strings into their components
-    local_parts = local_version.split('.')
-    github_parts = github_version.split('.')
-
-    # Convert version components to integers
-    local_numbers = [int(part) for part in local_parts]
-    github_numbers = [int(part) for part in github_parts]
-
-    # Compare each component
-    for local, github in zip(local_numbers, github_numbers):
-        if local < github:
-            return True  # User should update
-        elif local > github:
-            return False  # Local version is ahead
-
-    # If all components are equal, check for additional components
-    if len(local_numbers) < len(github_numbers):
-        return True  # User should update
-    else:
-        return False  # Local version is up to date or ahead

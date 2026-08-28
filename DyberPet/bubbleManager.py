@@ -23,8 +23,6 @@ List of buble behavior
     - feed_required [1]
 
 4. patpat
-    - pat_focus
-    - pat_frequent
     - pat_random [2]
 
 [1] The 'icon' is configured within the code, please keep it as null
@@ -150,6 +148,8 @@ class BubbleManager(QObject):
         candidate_items = [i for i in candidate_items if i not in dislike_items and i != 'coin']
         # exclude items with negative effect
         candidate_items = [i for i in candidate_items if settings.items_data.item_dict[i]['effect_HP'] > 0 or settings.items_data.item_dict[i]['effect_FV'] > 0]
+        # exclude items not yet unlocked by favor level (fv_lock must be <= current favor level)
+        candidate_items = [i for i in candidate_items if settings.items_data.item_dict[i]['fv_lock'] <= settings.pet_data.fv_lvl]
         # check if list empty
         if not candidate_items:
             return {}

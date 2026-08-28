@@ -10,9 +10,6 @@ from qfluentwidgets import FluentIcon as FIF
 
 from .BasicSettingUI import SettingInterface
 from .GameSaveUI import SaveInterface
-from .CharCardUI import CharInterface
-from .ItemCardUI import ItemInterface
-from .PetCardUI import PetInterface
 from sys import platform
 import DyberPet.settings as settings
 basedir = settings.BASEDIR
@@ -24,16 +21,16 @@ class ControlMainWindow(FluentWindow):
 
     def __init__(self, minWidth=800, minHeight=800):
         super().__init__()
+        # 置顶显示：确保系统面板能盖住置顶的桌宠（尤其大尺寸时）
+        self.setWindowFlag(Qt.WindowStaysOnTopHint, True)
 
         # create sub interface
         self.settingInterface = SettingInterface(self)
         self.gamesaveInterface = SaveInterface(sizeHintDyber=(minWidth, minHeight), parent=self)
-        self.charCardInterface = CharInterface(sizeHintDyber=(minWidth, minHeight), parent=self)
-        self.itemCardInterface = ItemInterface(sizeHintDyber=(minWidth, minHeight), parent=self)
-        self.petCardInterface = PetInterface(sizeHintDyber=(minWidth, minHeight), parent=self)
 
         self.initNavigation()
         self.setMinimumSize(minWidth, minHeight)
+        self.resize(minWidth, minHeight)
         self.initWindow()
 
     def initNavigation(self):
@@ -42,18 +39,10 @@ class ControlMainWindow(FluentWindow):
         self.addSubInterface(self.gamesaveInterface,
                              FIF.SAVE, #QIcon(os.path.join(module_path, 'resource/saveIcon.svg')), 
                              self.tr('Game Save'))
-        self.addSubInterface(self.charCardInterface,
-                             QIcon(os.path.join(basedir, "res/icons/system/character.svg")),
-                             self.tr('Characters'))
-        self.addSubInterface(self.itemCardInterface,
-                             QIcon(os.path.join(basedir, "res/icons/system/itemMod.svg")),
-                             self.tr('Item MOD'))
-        self.addSubInterface(self.petCardInterface,
-                             QIcon(os.path.join(basedir, "res/icons/system/minipet.svg")),
-                             self.tr('Mini-Pets'))
-
 
         self.navigationInterface.setExpandWidth(200)
+        # 隐藏导航栏左上角的返回按钮（本产品无多级子页面返回需求）
+        self.navigationInterface.setReturnButtonVisible(False)
 
     def initWindow(self):
         #self.setMinimumSize(minWidth, minHeight)
@@ -70,6 +59,8 @@ class ControlMainWindow(FluentWindow):
             self.hide()
         else:
             self.show()
+            self.raise_()
+            self.activateWindow()
 
     def closeEvent(self, event):
         event.ignore()  # Ignore the close event

@@ -52,7 +52,7 @@ class backpackInterface(ScrollArea):
 
         # Function Attributes ----------------------------------------------------------
         self.items_data = settings.items_data #ItemData(HUNGERSTR=settings.HUNGERSTR, FAVORSTR=settings.FAVORSTR)
-        self.tab_dict = {'consumable':0, 'collection':1, 'dialogue':1, 'subpet':2}
+        self.tab_dict = {'consumable':0, 'collection':1, 'dialogue':1}
         self.calculate_droprate()
 
         # UI Design --------------------------------------------------------------------
@@ -109,11 +109,9 @@ class backpackInterface(ScrollArea):
 
         self.foodInterface = itemTabWidget(self.items_data, ['consumable'], sizeHintdb, 0)
         self.clctInterface = itemTabWidget(self.items_data, ['collection','dialogue'], sizeHintdb, 1)
-        self.petsInterface = itemTabWidget(self.items_data, ['subpet'], sizeHintdb, 2)
 
         self.addSubInterface(self.foodInterface, 'foodInterface', QIcon(os.path.join(basedir, 'res/icons/tab_1.svg')))
         self.addSubInterface(self.clctInterface, 'clctInterface', QIcon(os.path.join(basedir, 'res/icons/tab_2.svg')))
-        self.addSubInterface(self.petsInterface, 'petsInterface', QIcon(os.path.join(basedir, 'res/icons/tab_pet.svg')))
 
         self.stackedWidget.currentChanged.connect(self.onCurrentIndexChanged)
         self.stackedWidget.setCurrentWidget(self.foodInterface)
@@ -211,26 +209,13 @@ class backpackInterface(ScrollArea):
         self.clctInterface.addBuff.connect(self._addBuff)
         self.clctInterface.rmBuff.connect(self.rmBuff)
 
-        self.confirmClicked.connect(self.petsInterface._confirmClicked)
-        self.acc_withdrawed.connect(self.petsInterface.acc_withdrawed)
-        self.petsInterface.set_confirm.connect(self._buttonUpdate)
-        self.petsInterface.use_item_inven.connect(self._use_item_inven)
-        self.petsInterface.item_num_changed.connect(self._item_num_changed)
-        self.petsInterface.item_note.connect(self._item_note)
-        self.petsInterface.item_drop.connect(self.item_drop)
-        self.petsInterface.size_changed.connect(self.stackedWidget.subWidget_sizeChange)
-        self.petsInterface.addBuff.connect(self._addBuff)
-        self.petsInterface.rmBuff.connect(self.rmBuff)
-        
-
     def _showInstruction(self):
         title = self.tr("Backpack Guide")
         content = self.tr("""Backpack keeps all the items pet got.
 
-There are in total 3 tabs and the coins display:
+There are in total 2 tabs and the coins display:
     - Consumable items (food, etc.)
     - Collections (Dialogue, etc.)
-    - Subpet
 (All tabs have infinite volume.)
 
 📌Items have different effects, such as adding HP. Some of them also have Buff effects. Please position your cursor over the item to see details.
@@ -263,7 +248,6 @@ If there is any item in the first cell of the consumable item tab, this item wil
         # update backpack tabs
         self.foodInterface._refreshBag()
         self.clctInterface._refreshBag()
-        self.petsInterface._refreshBag()
         # disable the confirm button
         self._buttonUpdate(0, 0)
 

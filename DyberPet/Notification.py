@@ -17,7 +17,6 @@ from PySide6.QtWidgets import *
 from PySide6.QtCore import QObject, QThread, Signal
 from PySide6.QtCore import Qt, QTimer, QObject, QPoint, QUrl, QRect, QSize, QPropertyAnimation, QAbstractAnimation
 from PySide6.QtGui import QImage, QPixmap, QIcon, QCursor, QColor, QPainter
-from PySide6.QtMultimedia import QSoundEffect, QMediaPlayer, QAudioOutput
 
 from qfluentwidgets import TextWrap, TransparentToolButton, BodyLabel
 from qfluentwidgets import FluentIcon as FIF
@@ -72,11 +71,7 @@ class DPNote(QWidget):
         super(DPNote, self).__init__(parent)
 
         sys_note_conf = dict(json.load(open(os.path.join(basedir, 'res/icons/note_icon.json'), 'r', encoding='UTF-8')))
-        try:
-            pet_note_conf = dict(json.load(open(os.path.join(basedir, 'res/role/{}/note/note.json'.format(settings.petname)), 'r', encoding='UTF-8')))
-        except:
-            pet_note_conf = {}
-        self.icon_dict, self.sound_dict = self.init_note(sys_note_conf, pet_note_conf)
+        self.icon_dict = self.init_note(sys_note_conf)
         pet_cof = dict(json.load(open(os.path.join(basedir, 'res/role/{}/pet_conf.json'.format(settings.petname)), 'r', encoding='UTF-8')))
         self.item_favorite = pet_cof.get('item_favorite', [])
         self.item_dislike = pet_cof.get('item_dislike', [])
@@ -88,7 +83,6 @@ class DPNote(QWidget):
         self.height_dict = {}
         self.bb_height_dict = {}
         self.type_dict = {}
-        self.sound_playing = []
         self.exist_bubble_types = {}
 
         if platform == 'win32':
@@ -98,76 +92,17 @@ class DPNote(QWidget):
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint)
         
 
-    def init_note(self, sys_note_conf, pet_note_conf):
+    def init_note(self, sys_note_conf):
+        # 只从全局 res/icons/note_icon.json 构建通知图标，不再加载角色个性化 note 配置，不再构建声音
         note_config = {}
-        sound_config = {}
         for k, v in sys_note_conf.items():
-            if k in pet_note_conf.keys():
-                if 'image' in pet_note_conf[k].keys():
-                    img_file = os.path.join(basedir, 'res/role/{}/note/{}'.format(settings.petname, pet_note_conf[k]['image']))
-                else:
-                    img_file = os.path.join(basedir, 'res/icons/{}'.format(sys_note_conf[k].get('image', 'icon.png')))
-
-                if 'sound' in pet_note_conf[k].keys():
-                    url = os.path.join(basedir, 'res/role/{}/note/{}'.format(settings.petname, pet_note_conf[k]['sound'])) #QUrl.fromLocalFile('res/role/{}/note/{}'.format(settings.pet_data.petname, pet_note_conf[k]['sound']))
-                else:
-                    url = os.path.join(basedir, 'res/sounds/{}'.format(sys_note_conf[k].get('sound', 'Notification.wav'))) #QUrl.fromLocalFile('res/sounds/{}'.format(sys_note_conf[k].get('sound', '13945.wav')))
-
-                if 'sound_priority' in pet_note_conf[k].keys():
-                    pty = pet_note_conf[k]['sound_priority']
-                else:
-                    pty = sys_note_conf[k].get('sound_priority', 0)
-
-                if 'fv_lock' in pet_note_conf[k].keys():
-                    flk = pet_note_conf[k]['fv_lock']
-                else:
-                    flk = sys_note_conf[k].get('fv_lock', 0)
-            else:
-                img_file = os.path.join(basedir, 'res/icons/{}'.format(sys_note_conf[k].get('image', 'icon.png')))
-
-                url = os.path.join(basedir, 'res/sounds/{}'.format(sys_note_conf[k].get('sound', 'Notification.wav')))  #QUrl.fromLocalFile('res/sounds/{}'.format(sys_note_conf[k].get('sound', '13945.wav')))
-
-                pty = sys_note_conf[k].get('sound_priority', 0)
-                flk = sys_note_conf[k].get('fv_lock', 0)
-
-            note_config[k] = {'image':_load_item_img(img_file), 'sound':url, 'fv_lock':flk}
-
-            if url in sound_config.keys():
-                pass
-            else:
-                sound_config[url] = {'sound':_load_item_sound(url), 'priority': pty}
-
-        for k, v in pet_note_conf.items():
-            if k in note_config.keys():
-                continue
-
-            if 'image' in pet_note_conf[k].keys():
-                img_file = os.path.join(basedir, 'res/role/{}/note/{}'.format(settings.petname, pet_note_conf[k]['image']))
-            else:
-                img_file = os.path.join(basedir, 'res/icons/icon.png')
-
-            if 'sound' in pet_note_conf[k].keys():
-                url = os.path.join(basedir, 'res/role/{}/note/{}'.format(settings.petname, pet_note_conf[k]['sound']))
-            else:
-                url = os.path.join(basedir, 'res/sounds/Notification.wav')
-
-            if 'sound_priority' in pet_note_conf[k].keys():
-                pty = pet_note_conf[k]['sound_priority']
-            else:
-                pty = 0
-
-            flk = pet_note_conf[k].get('fv_lock', 0)
-
-            note_config[k] = {'image':_load_item_img(img_file), 'sound':url, 'fv_lock':flk}
-
-            if url in sound_config.keys():
-                pass
-            else:
-                sound_config[url] = {'sound':_load_item_sound(url), 'priority': pty}
+            img_file = os.path.join(basedir, 'res/icons/{}'.format(sys_note_conf[k].get('image', 'icon.png')))
+            flk = sys_note_conf[k].get('fv_lock', 0)
+            note_config[k] = {'image':_load_item_img(img_file), 'fv_lock':flk}
 
         # update icon of status_coin
         note_config['status_coin']['image'] = settings.items_data.coin['image'] #settings.items_data.item_dict['coin']['image']
-        return note_config, sound_config #{'image':image, 'sound':player}
+        return note_config
 
     def change_pet(self):
         # close all bubbles
@@ -175,11 +110,7 @@ class DPNote(QWidget):
 
         # update note ui configuration
         sys_note_conf = dict(json.load(open(os.path.join(basedir, 'res/icons/note_icon.json'), 'r', encoding='UTF-8')))
-        try:
-            pet_note_conf = dict(json.load(open(os.path.join(basedir, 'res/role/{}/note/note.json'.format(settings.petname)), 'r', encoding='UTF-8')))
-        except:
-            pet_note_conf = {}
-        self.icon_dict, self.sound_dict = self.init_note(sys_note_conf, pet_note_conf)
+        self.icon_dict = self.init_note(sys_note_conf)
 
         pet_cof = dict(json.load(open(os.path.join(basedir, 'res/role/{}/pet_conf.json'.format(settings.petname)), 'r', encoding='UTF-8')))
         self.item_favorite = pet_cof.get('item_favorite', [])
@@ -245,36 +176,9 @@ class DPNote(QWidget):
                 if mergeable_type:
                     self.type_dict[mergeable_type] = (note_index, merge_num)
         
-        self.play_audio(note_type_use, note_index)
-
         self.note_in_prepare = False
         if message != '':
             self.noteToLog.emit(icon, message)
-
-    def play_audio(self, note_type, note_index):
-        # 播放声音
-        sound_key = self.icon_dict[note_type]['sound']
-        sound_pty = self.sound_dict[sound_key]['priority']
-
-        play_now = False
-        
-        for i in self.sound_dict.keys():
-            if not self.sound_dict[i]['sound'].isPlaying():
-                continue
-            else:
-                played_pty = self.sound_dict[i]['priority']
-                if played_pty > sound_pty or sound_key == i:
-                    play_now = True
-                    break
-                else:
-                    self.sound_dict[i]['sound'].stop()
-                    break
-        
-        if not play_now:
-            self.sound_playing = [note_index, sound_key]
-            self.sound_dict[sound_key]['sound'].setVolume(settings.volume)
-            self.sound_dict[sound_key]['sound'].play()
-
 
     def remove_note(self, note_index, close_type):
         mergeable_note_index = [k for k, v in self.type_dict.items() if v[0] == note_index]
@@ -282,10 +186,6 @@ class DPNote(QWidget):
             self.type_dict.pop(mergeable_note_index[0])
         self.note_dict.pop(note_index)
         self.height_dict.pop(note_index)
-        if close_type == 'button':
-            if note_index == self.sound_playing[0]:
-                self.sound_dict[self.sound_playing[1]]['sound'].stop()
-        
 
     def hpchange_note(self, hp_tier, direction):
         # 宠物到达饥饿状态和饿死时，发出通知
@@ -328,9 +228,7 @@ class DPNote(QWidget):
         note_index = str(uuid.uuid4())
         bubble_type = bubble_dict.get('bubble_type', None)
         message = bubble_dict['message']
-        sound_type = bubble_dict.get('start_audio', None)
         icon = bubble_dict.get('icon', None)
-        end_audio = bubble_dict.get('end_audio', None)
 
         # Deduplicate each type of bubbles
         if bubble_type:
@@ -373,7 +271,6 @@ class DPNote(QWidget):
                                 pos_x, pos_y,
                                 message=message,
                                 icon=icon,
-                                end_audio=end_audio,
                                 timeout=timeout,
                                 countdown = countdown)
         bubble_height = self.bubble_dict[note_index].height()
@@ -385,9 +282,6 @@ class DPNote(QWidget):
         
         self.bb_height_dict[note_index] = (int(bubble_height), int(height_margin))
         
-        if sound_type:
-            self.play_audio(sound_type, note_index)
-
         if message != '':
             self.noteToLog.emit(icon, message)
         
@@ -679,7 +573,6 @@ class BubbleText(QFrame):
                  pos_x, pos_y, 
                  message='',
                  icon=None,
-                 end_audio=None,
                  timeout=5000,
                  countdown=False,
                  parent=None):
@@ -689,7 +582,6 @@ class BubbleText(QFrame):
         self.message = message
         self.icon = icon
         self.icon_size = 26
-        self.end_audio = end_audio
         self.timeout = timeout
         self.leftover = int(timeout/1000)
         self.countdown = countdown
@@ -816,8 +708,6 @@ class BubbleText(QFrame):
         self.opacityAni.start()
 
     def closeEvent(self, event):
-        if self.end_audio:
-            self.register_note.emit(self.end_audio, '')
         self.closed_bubble.emit(self.note_index)
         self.deleteLater()
 
@@ -872,14 +762,6 @@ def _get_q_img(img_file) -> QPixmap:
     image = QPixmap()
     image.load(img_file)
     return image
-
-def _load_item_sound(file_path):
-    
-    player = QSoundEffect()
-    url = QUrl.fromLocalFile(file_path)
-    player.setSource(url)
-    player.setVolume(settings.volume)
-    return player
 
 
 def reading_time(text: str) -> float:

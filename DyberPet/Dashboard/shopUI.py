@@ -35,7 +35,7 @@ class shopInterface(ScrollArea):
 
         # Function Attributes ----------------------------------------------------------
         self.items_data = settings.items_data #ItemData(HUNGERSTR=settings.HUNGERSTR, FAVORSTR=settings.FAVORSTR)
-        self.tab_dict = {'consumable':0, 'collection':1, 'dialogue':1, 'subpet':2}
+        self.tab_dict = {'consumable':0, 'collection':1, 'dialogue':1}
         self.selectedTags = defaultdict(list)
         self.searchText = ''
         self.NumItemInDeal = 0
@@ -102,7 +102,7 @@ class shopInterface(ScrollArea):
         '''
         self.filterView = filterView(self)
         self.filterView.addFilter(title=self.tr('Type'),
-                                    options=[self.tr('Food'),self.tr('Collection'),self.tr('Pet')])
+                                    options=[self.tr('Food'),self.tr('Collection')])
         mods = get_MODs(os.path.join(basedir,'res/items'))
         self.filterView.addFilter(title=self.tr('MOD'),
                                     options=mods)

@@ -76,11 +76,5 @@
   },
   "bb_feed_done": {
     "image": "bubbles/blushing.svg"
-  },
-  "bb_pat_focus": {
-    "image": "bubbles/neutral.svg"
-  },
-  "bb_pat_frequent": {
-    "image": "bubbles/confused.svg"
   }
 }

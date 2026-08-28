@@ -2,10 +2,9 @@ import os
 import json
 import ctypes
 from sys import platform
-from collections import defaultdict
 
 from PySide6.QtGui import QImage, QPixmap
-from DyberPet.conf import PetData, TaskData, ActData, ItemData
+from DyberPet.conf import PetData, ActData, ItemData
 from PySide6 import QtCore
 
 if platform == 'win32':
@@ -37,10 +36,6 @@ CHARCOLLECT_LINK = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/coll
 ITEMCOLLECT_LINK = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/collection.md"
 PETCOLLECT_LINK = "https://github.com/ChaozhongLiu/DyberPet/blob/main/docs/collection.md"
 
-RELEASE_API = "https://api.github.com/repos/ChaozhongLiu/DyberPet/releases/latest"
-RELEASE_URL = "https://github.com/ChaozhongLiu/DyberPet/releases/latest"
-UPDATE_NEEDED = False
-
 HP_TIERS = [0,50,80,100]
 TIER_NAMES = ['Starving', 'Hungry', 'Normal', 'Energetic']
 HP_INTERVAL = 2
@@ -57,10 +52,6 @@ PP_BUBBLE = 0.15
 # Depreciation when sell item to shop
 ITEM_DEPRECIATION = 0.75
 
-# Coin reward once a task is checked from Task Panel
-SINGLETASK_REWARD = 200
-# Coin reward every 5 task
-FIVETASK_REWARD = 1500
 # Multiply HP and FV effect if item is required by bubble `feed_required`
 FACTOR_FEED_REQ = 5
 
@@ -79,7 +70,6 @@ ITEM_BGC = {'consumable': '#EFEBDF',
             'collection': '#e1eaf4',
             'Empty': '#f0f0ef',
             'dialogue': '#e1eaf4',
-            'subpet': '#f6eae9',
             'autofeed': '#e7f1e4'}
 ITEM_BGC_DEFAULT = '#EFEBDF'
 ITEM_BDC = '#B1C790'
@@ -174,6 +164,7 @@ def init():
     pets = get_petlist(os.path.join(basedir, 'res/role'))
     init_settings()
     global default_pet
+    default_pet = 'MapleFox'  # 单角色成品，固定默认角色
     if default_pet not in pets:
         default_pet = pets[0]
     else:
@@ -182,17 +173,10 @@ def init():
         pets = [default_pet] + pets
     save_settings()
 
-    # Focus Timer
-    global focus_timer_on
-    focus_timer_on = False
 
     # Load in pet data ================================================
     global pet_data 
     pet_data = PetData(pets)
-
-    # Load in task data ================================================
-    global task_data 
-    task_data = TaskData()
 
     # Init animation config data ================================================
     global act_data 
@@ -223,7 +207,7 @@ def init_settings():
     file_path = os.path.join(configdir, 'data/settings.json')
 
     global gravity, fixdragspeedx, fixdragspeedy, tunable_scale, scale_dict, volume, \
-           language_code, on_top_hint, default_pet, defaultAct, themeColor, minipet_scale, \
+           language_code, on_top_hint, default_pet, defaultAct, themeColor, \
            toaster_on, usertag_dict, auto_lock, bubble_on
 
     # check json file integrity
@@ -287,14 +271,6 @@ def init_settings():
             scale_dict[pet] = pet_scale
         tunable_scale = scale_dict[default_pet]
 
-        # mini-pet scale settings
-        minipet_scale = data_params.get('minipet_scale', defaultdict(dict))
-        minipet_scale = check_dict_datatype(minipet_scale, dict, {})
-        minipet_scale = defaultdict(dict, minipet_scale)
-        for minipet, sdict in minipet_scale.items():
-            minipet_scale[minipet] = check_dict_datatype(sdict, float, 1.0)
-        #=====================================================
-
         # v0.5.3 Toaster can be turned off
         toaster_on = data_params.get('toaster_on', True)
         #=====================================================
@@ -329,7 +305,6 @@ def init_settings():
         for pet in pets:
             scale_dict[pet] = 1.0
         tunable_scale = 1.0
-        minipet_scale = defaultdict(dict)
         toaster_on = True
         bubble_on = True
         usertag_dict = {}
@@ -339,7 +314,7 @@ def init_settings():
 
 def save_settings():
     global file_path, set_fall, gravity, fixdragspeedx, fixdragspeedy, scale_dict, volume, \
-           language_code, on_top_hint, default_pet, defaultAct, themeColor, minipet_scale, \
+           language_code, on_top_hint, default_pet, defaultAct, themeColor, \
            toaster_on, usertag_dict, auto_lock, bubble_on
 
     data_js = {'gravity':gravity,
@@ -348,7 +323,6 @@ def save_settings():
                'fixdragspeedy':fixdragspeedy,
                'usertag_dict':usertag_dict,
                'scale_dict':scale_dict,
-               'minipet_scale':minipet_scale,
                'volume':volume,
                'on_top_hint':on_top_hint,
                'toaster_on':toaster_on,

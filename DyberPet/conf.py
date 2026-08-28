@@ -129,16 +129,6 @@ class PetConfig:
 
             o.patpat = dict([(i, act_dict[pat_conf[i]]) for i in range(num_hp_states)])
 
-            # subpet now is independent from character
-            '''
-            subpet = conf_params.get('subpet', {})
-            for name in subpet:
-                subpet[name]['fv_lock'] = subpet[name].get('fv_lock',0)
-
-            o.subpet = subpet
-            '''
-
-            
             # 初始化随机动作
             random_act = []
             act_prob = []
@@ -268,90 +258,6 @@ class PetConfig:
             '''
 
             return o
-
-    @classmethod
-    def init_subpet(cls, pet_name: str, pic_dict: dict):
-
-        path = os.path.join(basedir, 'res/pet/{}/pet_conf.json'.format(pet_name))
-        with open(path, 'r', encoding='UTF-8') as f:
-            o = PetConfig()
-            conf_params = json.load(f)
-
-            o.petname = pet_name
-            o.scale = conf_params.get('scale', 1.0)
-            o.width = conf_params.get('width', 128) * o.scale
-            o.height = conf_params.get('height', 128) * o.scale
-            o.interact_speed = conf_params.get('interact_speed', 0.02) * 1000
-
-            # 初始化所有动作
-            act_path = os.path.join(basedir, 'res/pet/{}/act_conf.json'.format(pet_name))
-            act_conf = dict(json.load(open(act_path, 'r', encoding='UTF-8')))
-            act_dict = {}
-            act_dict = {k: Act.init_act(v, pic_dict, o.scale, pet_name, 'pet', k) for k, v in act_conf.items()}
-
-            # 载入默认动作
-            o.default = act_dict[conf_params['default']]
-            o.up = act_dict[conf_params.get('up', 'default')]
-            o.down = act_dict[conf_params.get('down', 'default')]
-            o.left = act_dict[conf_params.get('left', 'default')]
-            o.right = act_dict[conf_params.get('right', 'default')]
-            o.drag = act_dict[conf_params.get('drag', 'default')]
-            o.fall = act_dict[conf_params.get('fall', 'default')]
-            prefall = conf_params.get('prefall', 'fall')
-            o.prefall = act_dict.get(prefall, conf_params['default'])
-            o.on_floor = act_dict[conf_params.get('on_floor', 'default')]
-
-            pat_conf = conf_params.get('patpat', 'default')
-            if isinstance(pat_conf, str):
-                # only a single action defined for pat
-                pat_conf = dict([(i,pat_conf) for i in range(num_hp_states)])
-            elif isinstance(pat_conf, dict):
-                # pat animation defined separately for each HP tier
-                pat_conf = fill_missing_hptier(pat_conf)
-            else:
-                # in case anything unexpected happens
-                pat_conf = dict([(i, 'default') for i in range(num_hp_states)])
-
-            o.patpat = dict([(i, act_dict[pat_conf[i]]) for i in range(num_hp_states)])
-            #o.patpat = act_dict[conf_params.get('patpat', 'default')]
-
-            # Subpet position arguments
-            o.follow_main_x = conf_params.get('follow_main_x', True)
-            o.follow_main_y = conf_params.get('follow_main_y', False)
-            o.anchor_to_main = conf_params.get('anchor_to_main', [])
-            
-            # Subpet Buff to chars - v0.3.4 moved to item_config
-            # o.buff_dict = conf_params.get('buff', {})
-         
-            # 初始化随机动作
-            random_act = []
-            act_prob = []
-            act_name = []
-            act_type = []
-            act_sound = []
-
-            for act_array in conf_params['random_act']:
-                random_act.append([act_dict[act] for act in act_array['act_list']])
-                act_prob.append(act_array.get('act_prob', 0.2))
-                act_name.append(act_array.get('name', None))
-                act_type.append(act_array.get('act_type', [2,1]))
-                act_sound.append(act_array.get('sound', []))
-
-            o.random_act = random_act
-            if sum(act_prob) == 0:
-                o.act_prob = [0] * len(act_prob)
-            else:
-                o.act_prob = [i/sum(act_prob) for i in act_prob]
-            o.act_name = act_name
-            o.act_type = act_type
-            o.act_sound = act_sound
-
-            # 和主宠物之间的交互
-            o.main_interact = conf_params.get("main_interact", {})
-
-            return o
-
-
 
 def fill_missing_hptier(pat_dict):
     pat_dict = dict([(int(k),v) for k,v in pat_dict.items()])
@@ -1112,142 +1018,6 @@ class PetData:
 
 
 
-class TaskData:
-    """
-    Data about daily task
-
-    Task Data
-    -------------
-        history
-            History record: List. ('Date', 'Minutes')
-        goal
-            daily focus time (minute) goal: int
-        goal_completed
-            bool indicates if daily goal already completed
-        n_days
-            Number of completed days-in-a-row: int
-        tasks_todo
-            Dict of task_id: task_text
-        tasks_done
-            Dict of task_id: task_text
-        n_tasks
-            Number of completed tasks: int
-    
-
-    TO-DO: What if day changed while App is running?
-    """
-
-    def __init__(self):
-        """
-        Task Data Init
-        Load / Create task data file
-        """
-
-        self.file_path = os.path.join(configdir, 'data/task_data.json')
-        self.init_data()
-        self.save_data()
-
-
-    def init_data(self):
-        # Load in data
-        if os.path.isfile(self.file_path):
-            # Check file integrity
-            try:
-                self.taskData = json.load(open(self.file_path, 'r', encoding='UTF-8'))
-                self.stateGood = True
-            except:
-                #File broken (seen by a few users)
-                self.taskData = self._createData()
-                self.stateGood = False
-
-        else:
-            self.taskData = self._createData()
-            self.stateGood = True
-
-        # Check data integrity
-        self.taskData = self._checkData(self.taskData)
-
-        # Check if first time open today
-        self.checkDate()
-        
-
-
-    def _createData(self):
-        return {'history': [],
-                'goal': 180,
-                'goal_completed': False,
-                'n_days': 0,
-                'tasks_todo': {},
-                'tasks_done': {},
-                'n_tasks': 0}
-
-
-    def _checkData(self, taskData):
-        empty_data = self._createData()
-        for k in empty_data.keys():
-            if k not in taskData:
-                taskData[k] = empty_data[k]
-
-            elif type(taskData[k]) != type(empty_data[k]):
-                taskData[k] = empty_data[k]
-
-        return taskData
-
-
-    def _check_Date(self):
-        """ return today_exist, yesterday_exist """
-        today_exist, yesterday_exist = False, False
-        now = datetime.now()
-        self.today = f"{now.year}-{now.month}-{now.day}"
-        if self.taskData['history']:
-            lp = self.taskData['history'][-1][0].split('-')
-            last_opened = datetime(year=int(lp[0]), month=int(lp[1]), day=int(lp[2]),
-                                   hour=now.hour, minute=now.minute, second=now.second)
-        
-            if (now - last_opened).days == 0:
-                # Opened in the same day
-                today_exist = True
-                if len(self.taskData['history']) >= 2:
-                    last_2nd = self.taskData['history'][-2][0].split('-')
-                    last_2nd_opened = datetime(year=int(last_2nd[0]), month=int(last_2nd[1]), day=int(last_2nd[2]),
-                                           hour=now.hour, minute=now.minute, second=now.second)
-                    if (now - last_2nd_opened).days == 1:
-                        yesterday_exist = True
-                    else:
-                        yesterday_exist = False
-                else:
-                    yesterday_exist = False
-
-            elif (now - last_opened).days == 1:
-                today_exist, yesterday_exist = False, True
-            else:
-                today_exist, yesterday_exist = False, False
-
-        return today_exist, yesterday_exist
-
-
-    def save_data(self):
-        with open(self.file_path, 'w', encoding='utf-8') as f:
-            json.dump(self.taskData, f, ensure_ascii=False, indent=4)
-
-
-    def checkDate(self):
-        today_exist, yesterday_exist = self._check_Date()
-        if not today_exist:
-            self.taskData['history'].append((self.today, 0))
-            self.taskData['goal_completed'] = False
-        if not yesterday_exist:
-            self.yesterday = 0
-        else:
-            self.yesterday = self.taskData['history'][-2][1]
-
-        if self.yesterday < self.taskData['goal'] and not today_exist:
-            self.taskData['n_days'] = 0
-
-    def update_progress(self, newVal):
-        date_str = self.taskData['history'][-1][0]
-        self.taskData['history'][-1] = (date_str, newVal)
-
 
 
 
@@ -1287,10 +1057,6 @@ class ItemData:
         sorted_pairs = sorted(paired_list)
         # Extract the sorted elements
         sorted_itemMods = [element for _, element in sorted_pairs]
-
-        # Load subpets
-        petItems = get_child_folder(os.path.join(basedir,'res/pet'), relative=False)
-        sorted_itemMods += petItems
 
         # Load items in character folder
         char_item_dirs = find_dir_with_subdir(os.path.join(basedir,'res/role'), 'items')

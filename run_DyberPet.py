@@ -86,7 +86,6 @@ class DyberPetApp(QApplication):
         self.p.setup_notification.connect(self.note.setup_notification)
         self.p.setup_bubbleText.connect(self.note.setup_bubbleText)
         self.p.change_note.connect(self.note.change_pet)
-        self.p.change_note.connect(self.conp.charCardInterface._finishStateTooltip)
         self.p.close_bubble.connect(self.note.close_bubble)
         self.p.hptier_changed_main_note.connect(self.note.hpchange_note)
         self.p.fvlvl_changed_main_note.connect(self.note.fvchange_note)
@@ -104,7 +103,6 @@ class DyberPetApp(QApplication):
         self.conp.settingInterface.lang_changed.connect(self.p.lang_changed)
         self.p.change_note.connect(self.conp.settingInterface._update_scale)
 
-        self.conp.charCardInterface.change_pet.connect(self.p._change_pet)
         self.p.show_controlPanel.connect(self.conp.show_window)
 
         self.conp.gamesaveInterface.refresh_pet.connect(self.p.refresh_pet)
@@ -130,15 +128,6 @@ class DyberPetApp(QApplication):
         self.p.autofeed.connect(self.board.backpackInterface.autofeed)
         self.p.refresh_bag.connect(self.board.shopInterface.refresh_shop)
         self.p.addCoins.connect(self.board.backpackInterface.addCoins)
-
-        # Tasks and Timer
-        self.board.taskInterface.focusPanel.start_pomodoro.connect(self.p.run_tomato)
-        self.board.taskInterface.focusPanel.cancel_pomodoro.connect(self.p.cancel_tomato)
-        self.board.taskInterface.focusPanel.start_focus.connect(self.p.run_focus)
-        self.board.taskInterface.focusPanel.cancel_focus.connect(self.p.cancel_focus)
-        self.p.taskUI_Timer_update.connect(self.board.taskInterface.focusPanel.update_Timer)
-        self.p.taskUI_task_end.connect(self.board.taskInterface.focusPanel.taskFinished)
-        self.p.single_pomo_done.connect(self.board.taskInterface.focusPanel.single_pomo_done)
 
         # Animation Panel
         self.board.animInterface.animatPanel.updateList.connect(self.p.updateList)

@@ -14,7 +14,7 @@ from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QLocale, QSize
 from PySide6.QtGui import QDesktopServices, QIcon
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QFileDialog, QSizePolicy, QHBoxLayout, QSpacerItem
 
-from .custom_utils import DyberToolBottonCard, QuickSaveCard, SaveCardGroup, LineEditDialog
+from .custom_utils import QuickSaveCard, SaveCardGroup, LineEditDialog
 from .fileOp_utils import CopySave, DeleteQuickSave
 import DyberPet.settings as settings
 basedir = settings.BASEDIR
@@ -74,16 +74,6 @@ class SaveInterface(ScrollArea):
             ExportDir,
             self.TransferSaveGroup
         )
-
-        self.ImportSaveCard = DyberToolBottonCard(
-            self.tr('Import for'),
-            QIcon(os.path.join(basedir, 'res/icons/system/upload.svg')),
-            self.tr("Import from"),
-            menu_text = [self.tr('All pets')] + settings.pets,
-            content=self.tr("Please choose the pet, then choose the save folder"),
-            parent=self.TransferSaveGroup
-        )
-        self.ImportSaveCard.ToolButton.setToolTip(self.tr("Select pet, then select folder"))
 
         SaveDir = '/DyberPet/Saves'
         self.quickSaveDir = os.path.join(docPath + SaveDir)
@@ -160,7 +150,6 @@ class SaveInterface(ScrollArea):
 
         # add cards to group
         self.TransferSaveGroup.addSettingCard(self.ExportSaveCard)
-        self.TransferSaveGroup.addSettingCard(self.ImportSaveCard)
         
         # add setting card group to layout
         self.expandLayout.setSpacing(28)
@@ -183,8 +172,6 @@ class SaveInterface(ScrollArea):
         self.panelHelp.clicked.connect(self._showInstruction)
         self.ExportSaveCard.clicked.connect(
             self.__onExportSaveCardClicked)
-        self.ImportSaveCard.optionSelcted.connect(
-            self.__onImportSaveCardClicked)
 
         for i in range(len(self.saveCardList)):
             self.saveCardList[i].saveClicked.connect(self.__onCardSaveClicked)
@@ -218,32 +205,6 @@ class SaveInterface(ScrollArea):
         status_meth = [0, 2, 2]
         self.__showSystemNote(status_mssg[status_code], status_meth[status_code])
         self.ExportSaveCard.setContent(folder)
-
-    def __onImportSaveCardClicked(self, petname):
-        """ import folder card clicked slot """
-
-        # Confirm
-        title = self.tr('Are you sure you want to import another save?')
-        content = self.tr("""• Make sure you have exported the current save, in case an error happened\n• Currently, only save will be imported, note and settings won't be influenced\n• Only selected character save will be modified""")
-        if not self.__showMessageBox(title, content):
-            return
-
-        # Get the save folder name
-        ExportDir = '/DyberPet/Exports'
-        docPath = (QStandardPaths.locate(QStandardPaths.DocumentsLocation, '', QStandardPaths.LocateDirectory))
-        ExportDir = os.path.normpath(docPath + ExportDir)
-        folder = QFileDialog.getExistingDirectory(
-            self, self.tr("Choose Save Folder to Import"), 
-            ExportDir) #self.ImportSaveCard.contentLabel.text())
-
-        # If no file selected
-        if not folder:
-            return
-
-        # Load in data
-        self._loadin_petData(folder, petname)
-
-        self.ImportSaveCard.setContent(folder)
 
     def _loadin_petData(self, folder, petname):
 
@@ -502,16 +463,10 @@ class SaveInterface(ScrollArea):
         title = self.tr("Game Save Guide")
         content = self.tr("""Game Save Panel is the place you can Save and Load data.
 
-From top to bottom, there are 3 functions:
+From top to bottom, there are 2 functions:
 ⏺ Export Data
     - You can make a copy of the data to selected path
     - It contains character, settings, and task-related data
-
-⏺ Import Data
-    - You can import character data from the selected folder
-    - Choose import for all character or only one specific character
-    - Currently, only status and items data can be imported
-    - If you want to import other data like customized action, settings, you need to manually copy the files to the App data folder
 
 ⏺ Quick Save
     - Quick save frees you from selecting folders, and has more functions
