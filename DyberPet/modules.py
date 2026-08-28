@@ -247,37 +247,37 @@ class Animation_worker(QObject):
                 time.sleep(act[0]/1000)
             return
 
+        # 逐帧时长(配置了 frame_refresh_list 且长度与帧数一致时生效)
+        fr_list = getattr(act, 'frame_refresh_list', None)
+        if fr_list and len(fr_list) == len(act.images):
+            img_durations = [float(fr) for fr in fr_list]
+        else:
+            img_durations = None
+
         for i in range(act.act_num):
 
-            #while self.is_paused:
-            #    time.sleep(0.2)
             if self.is_paused:
                 break
             if self.is_killed:
                 break
 
-            for img in act.images:
+            for idx, img in enumerate(act.images):
 
-                #while self.is_paused:
-                #    time.sleep(0.2)
                 if self.is_paused:
                     break
                 if self.is_killed:
                     break
 
-                #global current_img, previous_img
                 settings.previous_img = settings.current_img
                 settings.current_img = img
                 settings.previous_anchor = settings.current_anchor
                 settings.current_anchor =  [int(i * settings.tunable_scale) for i in act.anchor]
-                #print('anim', settings.previous_anchor, settings.current_anchor)
                 self.sig_setimg_anim.emit()
-                #time.sleep(act.frame_refresh) ######## sleep 和 move 是不是应该反过来？
-                #if act.need_move:
                 self._move(act) #self.pos(), act)
-                time.sleep(act.frame_refresh) 
-                #else:
-                #    self._static_act(self.pos())
+                if img_durations is not None:
+                    time.sleep(img_durations[idx])
+                else:
+                    time.sleep(act.frame_refresh)
                 self.sig_repaint_anim.emit()
     '''
     def _static_act(self, pos: QPoint) -> None:
@@ -493,8 +493,13 @@ class Interaction_worker(QObject):
             if settings.playid >= n_repeat:
                 settings.playid = 0
         else:
-            n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
-            img_list_expand = [item for item in act.images for i in range(n_repeat)] * act.act_num
+            fr_list = getattr(act, 'frame_refresh_list', None)
+            if fr_list:
+                n_repeat_list = [max(1, math.ceil(fr / (self.pet_conf.interact_speed / 1000))) for fr in fr_list]
+                img_list_expand = [item for item, rep in zip(act.images, n_repeat_list) for _ in range(rep)] * act.act_num
+            else:
+                n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
+                img_list_expand = [item for item in act.images for i in range(n_repeat)] * act.act_num
             img = img_list_expand[settings.playid]
 
             settings.playid += 1
@@ -532,10 +537,14 @@ class Interaction_worker(QObject):
             #self.sig_act_finished.emit()
         else:
             act = acts[settings.act_id]
-            n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
-            n_repeat *= len(act.images) * act.act_num
+            fr_list = getattr(act, 'frame_refresh_list', None)
+            if fr_list:
+                total_frames = sum(max(1, math.ceil(fr / (self.pet_conf.interact_speed / 1000))) for fr in fr_list) * act.act_num
+            else:
+                n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
+                total_frames = n_repeat * len(act.images) * act.act_num
             self.img_from_act(act)
-            if settings.playid >= n_repeat-1:
+            if settings.playid >= total_frames-1:
                 settings.act_id += 1
 
             if act_name == 'onfloor' and settings.fall_right:
@@ -574,10 +583,14 @@ class Interaction_worker(QObject):
             #self.sig_act_finished.emit()
         else:
             act = acts[settings.act_id]
-            n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
-            n_repeat *= len(act.images) * act.act_num
+            fr_list = getattr(act, 'frame_refresh_list', None)
+            if fr_list:
+                total_frames = sum(max(1, math.ceil(fr / (self.pet_conf.interact_speed / 1000))) for fr in fr_list) * act.act_num
+            else:
+                n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
+                total_frames = n_repeat * len(act.images) * act.act_num
             self.img_from_act(act)
-            if settings.playid >= n_repeat-1:
+            if settings.playid >= total_frames-1:
                 settings.act_id += 1
 
             if settings.previous_img != settings.current_img or settings.previous_anchor != settings.current_anchor:
@@ -615,8 +628,12 @@ class Interaction_worker(QObject):
             if isinstance(act, list):
                 n_repeat = math.ceil(act[0]/self.pet_conf.interact_speed) * act[1]
             else:
-                n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
-                n_repeat *= len(act.images) * act.act_num
+                fr_list = getattr(act, 'frame_refresh_list', None)
+                if fr_list:
+                    n_repeat = sum(max(1, math.ceil(fr / (self.pet_conf.interact_speed / 1000))) for fr in fr_list) * act.act_num
+                else:
+                    n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
+                    n_repeat *= len(act.images) * act.act_num
             self.img_from_act(act)
             if settings.playid >= n_repeat-1:
                 settings.act_id += 1
@@ -635,10 +652,14 @@ class Interaction_worker(QObject):
             #self.sig_act_finished.emit()
         else:
             act = acts[settings.act_id]
-            n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
-            n_repeat *= len(act.images) * act.act_num
+            fr_list = getattr(act, 'frame_refresh_list', None)
+            if fr_list:
+                total_frames = sum(max(1, math.ceil(fr / (self.pet_conf.interact_speed / 1000))) for fr in fr_list) * act.act_num
+            else:
+                n_repeat = math.ceil(act.frame_refresh / (self.pet_conf.interact_speed / 1000))
+                total_frames = n_repeat * len(act.images) * act.act_num
             self.img_from_act(act)
-            if settings.playid >= n_repeat-1:
+            if settings.playid >= total_frames-1:
                 settings.act_id += 1
 
             if settings.previous_img != settings.current_img or settings.previous_anchor != settings.current_anchor:

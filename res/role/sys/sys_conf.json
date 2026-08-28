@@ -5,7 +5,15 @@
   
   "accessory_act":[
     {"name":"heart", "act_list":[], "acc_list":["heart"], "act_type":[0,10000],
-    "follow_mouse": false, "above_main":false, "anchor":[-18,0]}
+    "follow_mouse": false, "above_main":false, "anchor":[-18,0],
+    "head_offset_ratio": 0.2,
+    "physics": {
+      "v_x_range": [-6, 6],
+      "v_y_range": [-14, -8],
+      "gravity": 1.0,
+      "lifetime_ms": 1500,
+      "fade_ratio": 0.4
+    }}
   ]
 }
 

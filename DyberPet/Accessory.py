@@ -385,6 +385,22 @@ class QAccessory(QWidget):
         self.setLayout(self.petlayout)
         self.show()
 
+        # heart 专属:物理轨迹参数(随机方向斜抛 + 渐变消失)
+        if acc_act.get('name', '') == 'heart':
+            physics = acc_act.get('physics', {})
+            self._phys_v_x_range = tuple(physics.get('v_x_range', [-4, 4]))
+            self._phys_v_y_range = tuple(physics.get('v_y_range', [-10, -5]))
+            self._phys_gravity = float(physics.get('gravity', 1.0))
+            self._phys_lifetime_ms = int(physics.get('lifetime_ms', 1500))
+            self._phys_fade_ratio = float(physics.get('fade_ratio', 0.4))
+            self.v_x = random.uniform(*self._phys_v_x_range)
+            self.v_y = random.uniform(*self._phys_v_y_range)
+            self._phys_frame_count = 0
+            self._phys_total_frames = max(1, int(self._phys_lifetime_ms / 20))
+            self._phys_fade_start_frame = int(self._phys_total_frames * (1.0 - self._phys_fade_ratio))
+        else:
+            self._phys_total_frames = 0
+
         self.timer = QTimer()
         self.timer.setTimerType(Qt.PreciseTimer)
         self.timer.timeout.connect(self.Action)
@@ -482,8 +498,13 @@ class QAccessory(QWidget):
                 n_repeat = math.ceil(act[0]/20) * act[1]
                 self.img_list_expand = [None] * n_repeat
             else:
-                n_repeat = math.ceil(act.frame_refresh / (20 / 1000))
-                self.img_list_expand = [item for item in act.images for i in range(n_repeat)] * act.act_num
+                fr_list = getattr(act, 'frame_refresh_list', None)
+                if fr_list:
+                    n_repeat_list = [max(1, math.ceil(fr / (20 / 1000))) for fr in fr_list]
+                    self.img_list_expand = [item for item, rep in zip(act.images, n_repeat_list) for _ in range(rep)] * act.act_num
+                else:
+                    n_repeat = math.ceil(act.frame_refresh / (20 / 1000))
+                    self.img_list_expand = [item for item in act.images for i in range(n_repeat)] * act.act_num
 
         img = self.img_list_expand[self.playid]
 
@@ -506,18 +527,21 @@ class QAccessory(QWidget):
     def Action(self):
 
         if self.finished and self.timeout:
-            #self.waitn += 1
-            #if self.waitn >= self.timeout/20:
             self.timer.stop()
             self._closeit()
             return
-        
+
+        is_heart = (self.acc_act.get('name', '') == 'heart')
+
         acts = self.acc_act['acc_list']
         #print(settings.act_id, len(acts))
         if self.act_id >= len(acts):
             if self.timeout:
-                self.finished = True
-                return
+                if is_heart:
+                    self.act_id = 0  # heart 帧动画循环播放,寿命由物理轨迹控制
+                else:
+                    self.finished = True
+                    return
             else:
                 self.act_id = 0
 
@@ -526,8 +550,12 @@ class QAccessory(QWidget):
         if isinstance(act, list):
             n_repeat = math.ceil(act[0]/20) * act[1]
         else:
-            n_repeat = math.ceil(act.frame_refresh / (20 / 1000))
-            n_repeat *= len(act.images) * act.act_num
+            fr_list = getattr(act, 'frame_refresh_list', None)
+            if fr_list:
+                n_repeat = sum(max(1, math.ceil(fr / (20 / 1000))) for fr in fr_list) * act.act_num
+            else:
+                n_repeat = math.ceil(act.frame_refresh / (20 / 1000))
+                n_repeat *= len(act.images) * act.act_num
         self.img_from_act(act)
         if self.playid >= n_repeat-1:
             self.act_id += 1
@@ -540,10 +568,34 @@ class QAccessory(QWidget):
             #self.current_img = self.current_img.mirrored(True, False)
         if self.previous_img != self.current_img or self.previous_anchor != self.current_anchor:
             self.set_img()
-            self._move(act)
+            if not is_heart:
+                self._move(act)
 
         if self.follow_main and not self.at_destination:
             self.move_to_main()
+
+        # heart 专属:物理轨迹(随机方向 + 重力斜抛 + 渐变消失)
+        if is_heart:
+            self._heart_physics_step()
+
+    def _heart_physics_step(self):
+        """heart 浮动爱心:随机初速 + 重力斜抛 + 渐变消失"""
+        self._phys_frame_count += 1
+
+        # 渐变消失(后 fade_ratio 阶段)
+        if self._phys_frame_count >= self._phys_fade_start_frame:
+            fade_frames = self._phys_total_frames - self._phys_fade_start_frame
+            if fade_frames > 0:
+                opacity = 1.0 - (self._phys_frame_count - self._phys_fade_start_frame) / fade_frames
+                self.setWindowOpacity(max(0.0, opacity))
+
+        # 物理运动
+        self.v_y += self._phys_gravity
+        self.move(self.pos().x() + self.v_x, self.pos().y() + self.v_y)
+
+        # 寿命结束,下一帧关闭
+        if self._phys_frame_count >= self._phys_total_frames:
+            self.finished = True
 
     def _move(self, act: QAction) -> None: #pos: QPoint, act: QAction) -> None:
         """

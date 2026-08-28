@@ -381,7 +381,7 @@ def CheckCharFiles(folder):
 
 
 class Act:
-    def __init__(self, images=(), act_name=None, act_num=1, need_move=False, direction=None, frame_move=10, frame_refresh=0.04, anchor=[0,0]):
+    def __init__(self, images=(), act_name=None, act_num=1, need_move=False, direction=None, frame_move=10, frame_refresh=0.04, anchor=[0,0], frame_refresh_list=None):
         """
         动作
         :param images: 动作图像
@@ -390,6 +390,7 @@ class Act:
         :param direction: 移动方向
         :param frame_move 单帧移动距离
         :param frame_refresh 单帧刷新时间
+        :param frame_refresh_list 逐帧刷新时间列表(长度须等于 images 帧数;为 None 时使用 frame_refresh)
         """
         self.images = images
         self.act_name = act_name
@@ -398,6 +399,7 @@ class Act:
         self.direction = direction
         self.frame_move = frame_move
         self.frame_refresh = frame_refresh
+        self.frame_refresh_list = frame_refresh_list
         self.anchor = anchor
 
     @classmethod
@@ -426,13 +428,22 @@ class Act:
         direction = conf_param.get('direction', None)
         frame_move = conf_param.get('frame_move', 10) * scale
         frame_refresh = conf_param.get('frame_refresh', 0.5)
+        if isinstance(frame_refresh, list):
+            frame_refresh_list = [float(i) for i in frame_refresh]
+            frame_refresh = frame_refresh_list[0] if frame_refresh_list else 0.5
+        else:
+            frame_refresh_list = None
         anchor = conf_param.get('anchor', [0,0])
-        return Act(img, act_name, act_num, need_move, direction, frame_move, frame_refresh, anchor)
+        return Act(img, act_name, act_num, need_move, direction, frame_move, frame_refresh, anchor, frame_refresh_list)
     
     def customized_copy(self, start_idx, end_idx, num_rep):
         imgs = self.images * int(self.act_num)
         imgs = imgs[start_idx:end_idx]
-        return Act(imgs, self.act_name, num_rep, self.need_move, self.direction, self.frame_move, self.frame_refresh, self.anchor)
+        frl = None
+        if self.frame_refresh_list is not None:
+            frl = self.frame_refresh_list * int(self.act_num)
+            frl = frl[start_idx:end_idx]
+        return Act(imgs, self.act_name, num_rep, self.need_move, self.direction, self.frame_move, self.frame_refresh, self.anchor, frl)
 
 
 def tran_idx_img(start_idx: int, end_idx: int, pic_dict: dict) -> list:
@@ -457,6 +468,7 @@ class EmptyAct:
         self.direction = None
         self.frame_move = 0
         self.frame_refresh = frame_refresh
+        self.frame_refresh_list = None
         self.anchor = [0,0]
 
 

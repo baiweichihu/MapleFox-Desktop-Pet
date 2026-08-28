@@ -1445,8 +1445,12 @@ class PetWidget(QWidget):
                 accs = self.sys_conf.accessory_act['heart']
             except:
                 return
-            x = QCursor.pos().x() #self.pos().x()+self.width()//2 + random.uniform(-0.25, 0.25) * self.label.width()
-            y = QCursor.pos().y() #self.pos().y()+self.height()-0.8*self.label.height() + random.uniform(0, 1) * 10
+            # 爱心固定从桌宠头顶冒出,与点击位置无关
+            # head_offset_ratio: 头顶距桌宠 PNG 顶部的比例(0.2 = 距顶部 20%,即从底部向上 80%)
+            heart_h = accs['acc_list'][0].images[0].height()   # 爱心帧高,仅用于补偿 setup_acc 的 -帧高
+            head_offset = int(self.height() * accs.get('head_offset_ratio', 0.0))  # 基于桌宠高度
+            x = self.pos().x() + self.width()//2
+            y = self.pos().y() + head_offset + heart_h
             self.setup_acc.emit(accs, x, y)
 
         elif prob_num_0 < settings.PP_COIN:
