@@ -19,7 +19,7 @@ from qfluentwidgets import CaptionLabel, setFont, Action #,RoundMenu
 from qfluentwidgets import FluentIcon as FIF
 from DyberPet.custom_widgets import SystemTray
 from .custom_roundmenu import RoundMenu
-from .extra_windows import Remindme
+from .extra_windows import MemoWindow, ReminderWindow
 
 from DyberPet.conf import *
 from DyberPet.utils import *
@@ -367,9 +367,9 @@ class PetWidget(QWidget):
     send_positions = Signal(list, list, name='send_positions')
 
     lang_changed = Signal(name='lang_changed')
-    show_controlPanel = Signal(name='show_controlPanel')
+    show_controlPanel = Signal(str, name='show_controlPanel')
 
-    show_dashboard = Signal(name='show_dashboard')
+    show_dashboard = Signal(str, name='show_dashboard')
     hp_updated = Signal(int, name='hp_updated')
     fv_updated = Signal(int, int, name='fv_updated')
 
@@ -436,9 +436,6 @@ class PetWidget(QWidget):
         self.runInteraction()
         self.runScheduler()
         
-
-        # 初始化重复提醒任务 - feature deleted
-        #self.remind_window.initial_task()
 
         # 启动完毕10s后检查好感度等级奖励补偿
         self.compensate_timer = None
@@ -729,8 +726,13 @@ class PetWidget(QWidget):
             self.cursor_dragged = self.cursor_user
 
         # 备忘录窗口
-        self.remind_window = Remindme()
-        self.remind_window.close_remind.connect(self.show_remind)
+        self.memo_window = MemoWindow()
+        self.memo_window.close_memo.connect(self.show_memo)
+
+        # 提醒窗口
+        self.reminder_window = ReminderWindow()
+        self.reminder_window.close_reminder.connect(self.show_reminder)
+        self.reminder_window.remind_trigger.connect(lambda text: self.register_notification('system', text))
 
     '''
     def _init_Inventory(self):
@@ -744,88 +746,6 @@ class PetWidget(QWidget):
         self.acc_withdrawed.connect(self.inventory_window.acc_withdrawed)
         self.fvlvl_changed_main_inve.connect(self.inventory_window.fvchange)
     '''
-
-
-    def _set_menu(self, pets=()):
-        """
-        Option Menu
-        """
-        #menu = RoundMenu(self.tr("More Options"), self)
-        #menu.setIcon(FIF.MENU)
-
-        # Select action
-        self.act_menu = RoundMenu(self.tr("Select Action"))
-        self.act_menu.setIcon(QIcon(os.path.join(basedir,'res/icons/jump.svg')))
-
-        if platform == 'win32':
-            self.start_follow_mouse = Action(QIcon(os.path.join(basedir,'res/icons/cursor.svg')),
-                                            self.tr('Follow Cursor'),
-                                            triggered = self.follow_mouse_act)
-            self.act_menu.addAction(self.start_follow_mouse)
-            self.act_menu.addSeparator()
-
-        acts_config = settings.act_data.allAct_params[settings.petname]
-        self.select_acts = [ _build_act(k, self.act_menu, self._show_act) for k,v in acts_config.items() if v['unlocked']]
-        if self.select_acts:
-            self.act_menu.addActions(self.select_acts)
-
-        #menu.addMenu(self.act_menu)
-
-
-        # Change Character
-        self.change_menu = RoundMenu(self.tr("Change Character"))
-        self.change_menu.setIcon(QIcon(os.path.join(basedir,'res/icons/system/character.svg')))
-        change_acts = [_build_act(name, self.change_menu, self._change_pet) for name in pets]
-        self.change_menu.addActions(change_acts)
-        #menu.addMenu(self.change_menu)
-
-        # Drop on/off
-        '''
-        if settings.set_fall == 1:
-            self.switch_fall = Action(QIcon(os.path.join(basedir,'res/icons/on.svg')),
-                                      self.tr('Allow Drop'), menu)
-        else:
-            self.switch_fall = Action(QIcon(os.path.join(basedir,'res/icons/off.svg')),
-                                      self.tr("Don't Drop"), menu)
-        self.switch_fall.triggered.connect(self.fall_onoff)
-        '''
-        #menu.addAction(self.switch_fall)
-
-        
-        # Visit website - feature deprecated
-        '''
-        web_file = os.path.join(basedir, 'res/role/sys/webs.json')
-        if os.path.isfile(web_file):
-            web_dict = json.load(open(web_file, 'r', encoding='UTF-8'))
-
-            self.web_menu = RoundMenu(self.tr("Website"), menu)
-            self.web_menu.setIcon(QIcon(os.path.join(basedir,'res/icons/website.svg')))
-
-            web_acts = [_build_act_param(name, web_dict[name], self.web_menu, self.open_web) for name in web_dict]
-            self.web_menu.addActions(web_acts)
-            menu.addMenu(self.web_menu)
-        '''
-            
-        #menu.addSeparator()
-        #self.menu = menu
-        #self.menu.addAction(Action(FIF.POWER_BUTTON, self.tr('Exit'), triggered=self.quit))
-
-
-    def _update_fvlock(self):
-
-        # Update selectable animations
-        acts_config = settings.act_data.allAct_params[settings.petname]
-        for act_name, act_conf in acts_config.items():
-            if act_conf['unlocked']:
-                if act_name not in [acti.text() for acti in self.select_acts]:
-                    new_act = _build_act(act_name, self.act_menu, self._show_act)
-                    self.act_menu.addAction(new_act)
-                    self.select_acts.append(new_act)
-            else:
-                if act_name in [acti.text() for acti in self.select_acts]:
-                    act_index = [acti.text() for acti in self.select_acts].index(act_name)
-                    self.act_menu.removeAction(self.select_acts[act_index])
-                    self.select_acts.remove(self.select_acts[act_index])
 
 
     def _set_Statusmenu(self):
@@ -957,13 +877,38 @@ class PetWidget(QWidget):
         #self.StatMenu.addWidget(fvbar, selectable=False)
         self.StatMenu.addSeparator()
 
-        #self.StatMenu.addMenu(self.menu)
-        self.StatMenu.addActions([
-            #Action(FIF.MENU, self.tr('More Options'), triggered=self._show_right_menu),
-            Action(QIcon(os.path.join(basedir,'res/icons/dashboard.svg')), self.tr('Dashboard'), triggered=self._show_dashboard),
-            Action(QIcon(os.path.join(basedir,'res/icons/SystemPanel.png')), self.tr('System'), triggered=self._show_controlPanel),
-            Action(QIcon(os.path.join(basedir,'res/icons/Dialogue_icon.png')), self.tr('Memo'), triggered=self.show_remind),
+        # 养成
+        growth_menu = RoundMenu(self.tr('Growth'))
+        growth_menu.setIcon(QIcon(os.path.join(basedir, 'res/icons/dashboard.svg')))
+        growth_menu.addActions([
+            Action(QIcon(os.path.join(basedir, 'res/icons/Dashboard/progress.svg')), self.tr('Status'),
+                   triggered=lambda: self._show_dashboard('status')),
+            Action(QIcon(os.path.join(basedir, 'res/icons/Dashboard/backpack.svg')), self.tr('Backpack'),
+                   triggered=lambda: self._show_dashboard('backpack')),
+            Action(QIcon(os.path.join(basedir, 'res/icons/Dashboard/shop.svg')), self.tr('Shop'),
+                   triggered=lambda: self._show_dashboard('shop')),
         ])
+        self.StatMenu.addMenu(growth_menu)
+
+        # 互动
+        interact_menu = RoundMenu(self.tr('Interact'))
+        interact_menu.setIcon(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')))
+        chat_action = Action(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')), self.tr('Chat'))
+        chat_action.setEnabled(False)  # LLM 对话预留（P1-1 接入后启用）
+        interact_menu.addActions([
+            chat_action,
+            Action(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')), self.tr('Memo'), triggered=self.show_memo),
+            Action(QIcon(os.path.join(basedir, 'res/icons/remind_icon.png')), self.tr('Reminders'), triggered=self.show_reminder),
+        ])
+        self.StatMenu.addMenu(interact_menu)
+
+        self.StatMenu.addSeparator()
+
+        # 设置（单按钮，打开设置窗口：内含 设置/存档管理/动画 三个页面）
+        self.StatMenu.addAction(
+            Action(QIcon(os.path.join(basedir, 'res/icons/SystemPanel.png')), self.tr('Settings'),
+                   triggered=lambda: self._show_controlPanel('settings')))
+
         self.StatMenu.addSeparator()
 
         self.StatMenu.addActions([
@@ -1029,7 +974,6 @@ class PetWidget(QWidget):
         # Update BackPack
         #self._init_Inventory()
         self.refresh_bag.emit()
-        self._set_menu(self.pets)
         self._set_Statusmenu()
         self._set_tray()
 
@@ -1124,7 +1068,6 @@ class PetWidget(QWidget):
         self.bubble_manager = BubbleManager()
         self.bubble_manager.register_bubble.connect(self.register_bubbleText)
 
-        self._set_menu(self.pets)
         self._set_Statusmenu()
         self._set_tray()
 
@@ -1179,22 +1122,12 @@ class PetWidget(QWidget):
                                                 "act_type": act_conf['status_type']}
         # update random action prob
         self.updateList()
-        # Add to menu
-        if act_conf['unlocked']:
-            select_act = _build_act(act_name, self.act_menu, self._show_act)
-            self.select_acts.append(select_act)
-            self.act_menu.addAction(select_act)
-    
+
     def _deleteAct(self, act_name):
         # delete from self.pet_config
         self.pet_conf.custom_act.pop(act_name)
         # update random action prob
         self.updateList()
-
-        # delete from menu
-        act_index = [acti.text() for acti in self.select_acts].index(act_name)
-        self.act_menu.removeAction(self.select_acts[act_index])
-        self.select_acts.remove(self.select_acts[act_index])
 
 
     def _setup_ui(self):
@@ -1545,11 +1478,11 @@ class PetWidget(QWidget):
             settings.set_fall=1
     '''
 
-    def _show_controlPanel(self):
-        self.show_controlPanel.emit()
+    def _show_controlPanel(self, page_name='settings'):
+        self.show_controlPanel.emit(page_name)
 
-    def _show_dashboard(self):
-        self.show_dashboard.emit()
+    def _show_dashboard(self, page_name='status'):
+        self.show_dashboard.emit(page_name)
 
     '''
     def show_compday(self):
@@ -1571,13 +1504,21 @@ class PetWidget(QWidget):
 
 
 
-    def show_remind(self):
-        if self.remind_window.isVisible():
-            self.remind_window.hide()
+    def show_memo(self):
+        if self.memo_window.isVisible():
+            self.memo_window.hide()
         else:
-            self.remind_window.move(max(self.current_screen.topLeft().y(),self.pos().x()-self.remind_window.width()//2),
-                                    max(self.current_screen.topLeft().y(),self.pos().y()-self.remind_window.height()))
-            self.remind_window.show()
+            self.memo_window.move(max(self.current_screen.topLeft().y(), self.pos().x()-self.memo_window.width()//2),
+                                  max(self.current_screen.topLeft().y(), self.pos().y()-self.memo_window.height()))
+            self.memo_window.show()
+
+    def show_reminder(self):
+        if self.reminder_window.isVisible():
+            self.reminder_window.hide()
+        else:
+            self.reminder_window.move(max(self.current_screen.topLeft().y(), self.pos().x()-self.reminder_window.width()//2),
+                                      max(self.current_screen.topLeft().y(), self.pos().y()-self.reminder_window.height()))
+            self.reminder_window.show()
 
     ''' Reminder function deleted from v0.3.7
     def run_remind(self, task_type, hs=0, ms=0, texts=''):
@@ -1590,15 +1531,6 @@ class PetWidget(QWidget):
         elif task_type == 'repeat_point':
             self.workers['Scheduler'].add_remind(texts=texts, time_point=[hs,ms], repeat=True)
     '''
-
-    def show_inventory(self):
-        if self.inventory_window.isVisible():
-            self.inventory_window.hide()
-        else:
-            self.inventory_window.move(max(self.current_screen.topLeft().y(), self.pos().x()-self.inventory_window.width()//2),
-                                    max(self.current_screen.topLeft().y(), self.pos().y()-self.inventory_window.height()))
-            self.inventory_window.show()
-            #print(self.inventory_window.size())
 
     '''
     def show_settings(self):
@@ -1660,7 +1592,6 @@ class PetWidget(QWidget):
             self.workers['Animation'].fvchange(fv_lvl)
             self.fvlvl_changed_main_note.emit(fv_lvl)
             self.fvlvl_changed_main_inve.emit(fv_lvl)
-            self._update_fvlock()
             self.lvl_badge.set_level(fv_lvl)
         self.refresh_acts.emit()
         self.bubble_manager.trigger_bubble(bb_type="fv_lvlup")

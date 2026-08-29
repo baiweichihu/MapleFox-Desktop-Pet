@@ -11,7 +11,6 @@ from qfluentwidgets import FluentIcon as FIF
 from .statusUI import statusInterface
 from .inventoryUI import backpackInterface
 from .shopUI import shopInterface
-from .animationUI import animationInterface
 
 from sys import platform
 import DyberPet.settings as settings
@@ -41,7 +40,6 @@ class DashboardMainWindow(FluentWindow):
         self.statusInterface = statusInterface(sizeHintdb=(minWidth, minHeight), parent=self)
         self.backpackInterface = backpackInterface(sizeHintdb=(minWidth, minHeight), parent=self)
         self.shopInterface = shopInterface(sizeHintdb=(minWidth, minHeight), parent=self)
-        self.animInterface = animationInterface(sizeHintdb=(minWidth, minHeight), parent=self)
 
         self.initNavigation()
         self.setMinimumSize(minWidth, minHeight)
@@ -59,9 +57,6 @@ class DashboardMainWindow(FluentWindow):
         self.addSubInterface(self.shopInterface,
                              QIcon(os.path.join(basedir, "res/icons/Dashboard/shop.svg")),
                              self.tr('Shop'))
-        self.addSubInterface(self.animInterface,
-                             QIcon(os.path.join(basedir, "res/icons/Dashboard/videoEdit.svg")),
-                             self.tr('Animation'))
 
         self.navigationInterface.setExpandWidth(150)
 
@@ -69,12 +64,27 @@ class DashboardMainWindow(FluentWindow):
         #self.setMinimumSize(minWidth, minHeight)
         #self.resize(1000, 800)
         self.setWindowIcon(QIcon(os.path.join(basedir, "res/icons/dashboard.svg")))
-        self.setWindowTitle(self.tr('Dashboard'))
+        self.setWindowTitle(self.tr('Growth'))
 
         desktop = QApplication.primaryScreen().availableGeometry() #QApplication.desktop().availableGeometry()
         w, h = desktop.width(), desktop.height()
         self.move(w//2 - self.width()//2, h//2 - self.height()//2)
-    
+
+    def switch_to(self, page_name: str) -> None:
+        """
+        从右键菜单直达指定页面
+        :param page_name: status / backpack / shop
+        """
+        mapping = {
+            'status': self.statusInterface,
+            'backpack': self.backpackInterface,
+            'shop': self.shopInterface,
+        }
+        widget = mapping.get(page_name)
+        if widget is not None:
+            self.stackedWidget.setCurrentWidget(widget, popOut=False)
+            self.navigationInterface.setCurrentItem(widget.objectName())
+
     def __connectSignalToSlot(self):
         self.backpackInterface.addBuff.connect(self.statusInterface._addBuff)
         self.statusInterface.addCoins.connect(self.backpackInterface.addCoins)
@@ -86,10 +96,10 @@ class DashboardMainWindow(FluentWindow):
         self.shopInterface.sellItem.connect(self.backpackInterface.add_item)
         self.shopInterface.updateCoin.connect(self.backpackInterface.addCoins)
 
-    def show_window(self):
-        if self.isVisible():
-            self.hide()
-        else:
+    def show_window(self, page_name=None):
+        if page_name is not None:
+            self.switch_to(page_name)
+        if not self.isVisible():
             self.show()
 
     def closeEvent(self, event):

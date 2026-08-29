@@ -130,12 +130,12 @@ class DyberPetApp(QApplication):
         self.p.addCoins.connect(self.board.backpackInterface.addCoins)
 
         # Animation Panel
-        self.board.animInterface.animatPanel.updateList.connect(self.p.updateList)
-        self.board.animInterface.animatPanel.playAct.connect(self.p._show_act)
-        self.p.refresh_acts.connect(self.board.animInterface.animatPanel.updateAct)
-        self.p.refresh_acts.connect(self.board.animInterface.updateDesignUI)
-        self.board.animInterface.loadNewAct.connect(self.p._addNewAct)
-        self.board.animInterface.deletewAct.connect(self.p._deleteAct)
+        self.conp.animInterface.animatPanel.updateList.connect(self.p.updateList)
+        self.conp.animInterface.animatPanel.playAct.connect(self.p._show_act)
+        self.p.refresh_acts.connect(self.conp.animInterface.animatPanel.updateAct)
+        self.p.refresh_acts.connect(self.conp.animInterface.updateDesignUI)
+        self.conp.animInterface.loadNewAct.connect(self.p._addNewAct)
+        self.conp.animInterface.deletewAct.connect(self.p._deleteAct)
 
         # Midnight Trigger
         self.date_changed.connect(self.p._mightEventTrigger)

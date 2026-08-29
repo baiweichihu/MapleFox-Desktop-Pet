@@ -395,9 +395,9 @@ class DyberToaster(QFrame):
         frame = QFrame()
         frame.setStyleSheet('''
             QFrame {
-                border: 1px solid black;
-                border-radius: 6px; 
-                background: rgb(255, 255, 255);
+                border: 1px solid rgba(0, 0, 0, 25);
+                border-radius: 8px;
+                background: rgba(255, 255, 255, 245);
             }
             QLabel{
                 border: 0px;
@@ -633,9 +633,9 @@ class BubbleText(QFrame):
         frame = QFrame()
         frame.setStyleSheet('''
             QFrame {
-                border: 1px solid rgb(0, 0, 0);
+                border: 1px solid rgba(0, 0, 0, 25);
                 border-radius: 10px;
-                background: rgba(255, 255, 255, 220);
+                background: rgba(255, 255, 255, 245);
             }
             QLabel{
                 border: 0px;

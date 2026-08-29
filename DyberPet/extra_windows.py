@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 from PySide6.QtWidgets import *
 from PySide6.QtCore import QObject, QThread, Signal, QRectF
-from PySide6.QtCore import Qt, QTimer, QObject, QPoint, QEvent, QRect, QSize, QPropertyAnimation, QAbstractAnimation
+from PySide6.QtCore import Qt, QTimer, QObject, QPoint, QEvent, QRect, QSize, QDateTime, QPropertyAnimation, QAbstractAnimation
 from PySide6.QtGui import QImage, QPixmap, QIcon, QCursor, QPainter, QFont, QFontDatabase, QColor, QPainterPath, QRegion, QIntValidator, QDoubleValidator
 
 from qfluentwidgets import FluentIcon as FIF
@@ -685,419 +685,470 @@ QLabel {{
 """
 
 
-class Remindme(QWidget):
-    close_remind = Signal(name='close_remind')
-    confirm_remind = Signal(str, int, int, str, name='confirm_remind')
+##############################
+#          备忘录 & 提醒
+##############################
+
+CloseButtonStyle = """
+QPushButton {
+    background-color: rgba(0, 0, 0, 25);
+    border: none;
+    border-radius: 10px;
+}
+QPushButton:hover:!pressed {
+    background-color: #d93025;
+}
+QPushButton:pressed {
+    background-color: #c5221f;
+}
+"""
+
+_MemoQSS = """
+#memoFrame {
+    background: rgba(255, 255, 255, 235);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 25);
+}
+#memoFrame QLabel#memoTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333333;
+}
+#memoFrame QTextEdit {
+    border: 1px solid rgba(0, 0, 0, 25);
+    border-radius: 8px;
+    background: white;
+    padding: 8px;
+    font-size: 13px;
+    font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI";
+    color: #333333;
+    selection-background-color: #009faa;
+}
+#memoFrame QTextEdit:focus {
+    border: 1px solid #009faa;
+}
+"""
+
+class MemoWindow(QWidget):
+    """备忘录：单一文本框，自动保存自动加载"""
+    close_memo = Signal(name='close_memo')
 
     def __init__(self, parent=None):
-        super(Remindme, self).__init__(parent)
-        # Remindme time window
+        super().__init__(parent)
         self.is_follow_mouse = False
+        self.memo_path = os.path.join(configdir, 'data/remindme.txt')
+
         self.centralwidget = QFrame()
-        self.centralwidget.setStyleSheet(TomatoStyle)
+        self.centralwidget.setObjectName('memoFrame')
+        self.centralwidget.setStyleSheet(_MemoQSS)
 
-        vbox_r = QVBoxLayout()
-
-        self.checkA = QCheckBox(self.tr("Remind me after a while"), self)
-        #self.checkA.setFont(QFont('宋体', all_font_size))
-        self.checkB = QCheckBox(self.tr("Timed reminder"), self)
-        #self.checkB.setFont(QFont('宋体', all_font_size))
-        self.checkC = QCheckBox(self.tr("Repeat at intervals"), self)
-        #self.checkC.setFont(QFont('宋体', all_font_size))
-        self.checkA.stateChanged.connect(self.uncheck)
-        self.checkB.stateChanged.connect(self.uncheck)
-        self.checkC.stateChanged.connect(self.uncheck)
+        vbox = QVBoxLayout(self.centralwidget)
+        vbox.setContentsMargins(12, 10, 12, 12)
+        vbox.setSpacing(10)
 
         # 标题栏
-        hbox_r0 = QHBoxLayout()
-        self.title = QLabel(self.tr("Reminders"))
-        self.title.setStyleSheet(TomatoTitle)
+        hbox_title = QHBoxLayout()
+        hbox_title.setSpacing(6)
         icon = QLabel()
-        #icon.setStyleSheet(TomatoTitle)
         image = QImage()
-        image.load(os.path.join(basedir,'res/icons/remind_icon.png'))
+        image.load(os.path.join(basedir, 'res/icons/Dialogue_icon.png'))
+        icon.setPixmap(QPixmap.fromImage(image))
+        icon.setFixedSize(22, 22)
         icon.setScaledContents(True)
-        icon.setPixmap(QPixmap.fromImage(image)) #.scaled(20,20)))
-        #icon.setFixedSize(int(25*size_factor), int(25*size_factor))
-        icon.setFixedSize(int(25), int(25))
-        hbox_r0.addWidget(icon, Qt.AlignBottom | Qt.AlignLeft)
-        hbox_r0.addWidget(self.title, Qt.AlignVCenter | Qt.AlignLeft)
-        hbox_r0.addStretch(1)
+        self.title_label = QLabel(self.tr('Memo'))
+        self.title_label.setObjectName('memoTitle')
+        self.close_button = QPushButton()
+        self.close_button.setStyleSheet(CloseButtonStyle)
+        self.close_button.setFixedSize(20, 20)
+        self.close_button.setIcon(QIcon(os.path.join(basedir, 'res/icons/close_icon.png')))
+        self.close_button.setIconSize(QSize(12, 12))
+        self.close_button.setCursor(Qt.PointingHandCursor)
+        self.close_button.clicked.connect(self.close_memo)
+        hbox_title.addWidget(icon)
+        hbox_title.addWidget(self.title_label)
+        hbox_title.addStretch(1)
+        hbox_title.addWidget(self.close_button)
 
-        hbox_r1 = QHBoxLayout()
-        self.countdown_h = QLineEdit()
-        qintv = QIntValidator()
-        qintv.setRange(0,23)
-        self.countdown_h.setValidator(qintv)
-        self.countdown_h.setMaxLength(2)
-        self.countdown_h.setAlignment(Qt.AlignCenter)
-        self.countdown_h.setFont(QFont("Arial",18))
-        self.countdown_h.setFixedSize(int(38), int(38))
-        #self.countdown_h.setFixedSize(int(38*size_factor), int(38*size_factor))
+        # 文本编辑区
+        self.text_edit = QTextEdit()
+        self.text_edit.setPlaceholderText(self.tr('Write down anything here...'))
+        self.text_edit.textChanged.connect(self._save)
 
-        self.countdown_m = QLineEdit()
-        qintv = QIntValidator()
-        qintv.setRange(0,59)
-        self.countdown_m.setValidator(qintv)
-        self.countdown_m.setMaxLength(2)
-        self.countdown_m.setAlignment(Qt.AlignCenter)
-        self.countdown_m.setFont(QFont("Arial",18))
-        self.countdown_m.setFixedSize(int(38), int(38))
-        #self.countdown_m.setFixedSize(int(38*size_factor), int(38*size_factor))
+        vbox.addLayout(hbox_title)
+        vbox.addWidget(self.text_edit, 1)
 
-        hbox_r1.addWidget(self.countdown_h)
-        self.label_h = QLabel(self.tr('hour(s)'))
-        #label_h.setFont(QFont('宋体', all_font_size))
-        hbox_r1.addWidget(self.label_h)
-        hbox_r1.addWidget(self.countdown_m)
-        self.label_m = QLabel(self.tr('minute(s) later'))
-        #label_m.setFont(QFont('宋体', all_font_size))
-        hbox_r1.addWidget(self.label_m)
-        hbox_r1.addStretch(10)
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.centralwidget)
+        self.setFixedSize(380, 460)
 
-        hbox_r2 = QHBoxLayout()
-        self.time_h = QLineEdit()
-        qintv = QIntValidator()
-        qintv.setRange(0,23)
-        self.time_h.setValidator(qintv)
-        self.time_h.setMaxLength(2)
-        self.time_h.setAlignment(Qt.AlignCenter)
-        self.time_h.setFont(QFont("Arial",18))
-        self.time_h.setFixedSize(int(38), int(38))
-        #self.time_h.setFixedSize(int(38*size_factor), int(38*size_factor))
+        self._load()
 
-        self.time_m = QLineEdit()
-        qintv = QIntValidator()
-        qintv.setRange(0,59)
-        self.time_m.setValidator(qintv)
-        self.time_m.setMaxLength(2)
-        self.time_m.setAlignment(Qt.AlignCenter)
-        self.time_m.setFont(QFont("Arial",18))
-        self.time_m.setFixedSize(int(38), int(38))
-        #self.time_m.setFixedSize(int(38*size_factor), int(38*size_factor))
-
-        self.label_d = QLabel(self.tr('to'))
-        #label_d.setFont(QFont('宋体', all_font_size))
-        hbox_r2.addWidget(self.label_d)
-        hbox_r2.addWidget(self.time_h)
-        self.label_h2 = QLabel(self.tr("o'clock"))
-        #label_h.setFont(QFont('宋体', all_font_size))
-        hbox_r2.addWidget(self.label_h2)
-        hbox_r2.addWidget(self.time_m)
-        self.label_m2 = QLabel(self.tr('minute(s)'))
-        #label_m.setFont(QFont('宋体', all_font_size))
-        hbox_r2.addWidget(self.label_m2)
-        hbox_r2.addStretch(10)
-
-        hbox_r5 = QHBoxLayout()
-        self.check1 = QCheckBox(self.tr("at"), self) # xx 分时
-        #self.check1.setFont(QFont('宋体', all_font_size))
-        self.check2 = QCheckBox(self.tr("Every"), self)
-        #self.check2.setFont(QFont('宋体', all_font_size))
-        self.check1.stateChanged.connect(self.uncheck)
-        self.check2.stateChanged.connect(self.uncheck)
-
-        self.every_min = QLineEdit()
-        qintv = QIntValidator()
-        qintv.setRange(0,59)
-        self.every_min.setValidator(qintv)
-        self.every_min.setMaxLength(2)
-        self.every_min.setAlignment(Qt.AlignCenter)
-        self.every_min.setFont(QFont("Arial",18))
-        #self.every_min.setFixedSize(int(38*size_factor), int(38*size_factor))
-        self.every_min.setFixedSize(int(38), int(38))
-
-        self.label_em = QLabel(self.tr('minute mark'))
-        #label_em.setFont(QFont('宋体', all_font_size))
-
-        self.interval_min = QLineEdit()
-        qintv = QIntValidator()
-        qintv.setRange(1,999)
-        self.interval_min.setValidator(qintv)
-        self.interval_min.setMaxLength(3)
-        self.interval_min.setAlignment(Qt.AlignCenter)
-        self.interval_min.setFont(QFont("Arial",18))
-        #self.interval_min.setFixedSize(int(57*size_factor), int(38*size_factor))
-        self.interval_min.setFixedSize(int(57), int(38))
-
-        self.label_im = QLabel(self.tr('minute(s)'))
-        #label_im.setFont(QFont('宋体', all_font_size))
-        hbox_r5.addWidget(self.check1)
-        hbox_r5.addWidget(self.every_min)
-        hbox_r5.addWidget(self.label_em)
-        hbox_r5.addWidget(self.check2)
-        hbox_r5.addWidget(self.interval_min)
-        hbox_r5.addWidget(self.label_im)
-        hbox_r5.addStretch(10)
-
-        #hbox_r3 = QHBoxLayout()
-        self.button_confirm = QPushButton(self.tr("Confirm"))
-        #self.button_confirm.setFont(QFont('宋体', all_font_size))
-        self.button_confirm.clicked.connect(self.confirm)
-        #self.button_cancel = QPushButton("关闭")
-        #self.button_cancel.setFont(QFont('宋体', all_font_size))
-        #self.button_cancel.clicked.connect(self.close_remind)
-        #hbox_r3.addWidget(self.button_confirm)
-        #hbox_r3.addWidget(self.button_cancel)
-
-        hbox_r4 = QHBoxLayout()
-        self.e1 = QLineEdit()
-        self.e1.setFixedSize(int(250), int(38))
-        #self.e1.setFixedSize(int(250*size_factor), int(38*size_factor))
-        self.e1.setAlignment(Qt.AlignLeft)
-        self.e1.setFont(QFont("SimSun",12))
-        hbox_r4.addWidget(self.e1)
-        hbox_r4.addWidget(self.button_confirm)
-        hbox_r4.addStretch(1)
-
-        #label_method = QLabel('提醒方式')
-        #label_method.setFont(QFont('宋体', all_font_size))
-        #label_method.setStyleSheet("color : grey")
-        vbox_r.addLayout(hbox_r0)
-        vbox_r.addWidget(QHLine())
-        vbox_r.addWidget(self.checkA)
-        vbox_r.addLayout(hbox_r1)
-        vbox_r.addStretch(1)
-        vbox_r.addWidget(self.checkB)
-        vbox_r.addLayout(hbox_r2)
-        vbox_r.addStretch(1)
-        vbox_r.addWidget(self.checkC)
-        vbox_r.addLayout(hbox_r5)
-        vbox_r.addStretch(2)
-
-        self.label_r = QLabel(self.tr('Remind me:'))
-        #label_r.setFont(QFont('宋体', all_font_size))
-        #label_r.setStyleSheet("color : grey")
-        vbox_r.addWidget(self.label_r)
-        #vbox_r.addWidget(QHLine())
-        vbox_r.addLayout(hbox_r4)
-        #vbox_r.addLayout(hbox_r3, Qt.AlignBottom | Qt.AlignHCenter)
-        vbox_r.addStretch(1)
-
-
-        vbox_r2 = QVBoxLayout()
-
-        hbox_r6 = QHBoxLayout()
-
-        icon = QLabel()
-        #icon.setStyleSheet(TomatoTitle)
-        image = QImage()
-        image.load(os.path.join(basedir,'res/icons/note_icon.png'))
-        icon.setScaledContents(True)
-        icon.setPixmap(QPixmap.fromImage(image)) #.scaled(20,20)))
-        icon.setFixedSize(int(25), int(25))
-        #icon.setFixedSize(int(25*size_factor), int(25*size_factor))
-        hbox_r6.addWidget(icon, Qt.AlignBottom | Qt.AlignLeft)
-
-        self.label_on = QLabel(self.tr('Memo'))
-        self.label_on.setToolTip(self.tr('Memo auto-saves and reloads its content and reminders on next open'))
-        self.label_on.setStyleSheet(TomatoTitle)
-        self.label_on.setFixedHeight(int(25)) #*size_factor))
-        #label_on.setFont(QFont('宋体', all_font_size))
-        #label_on.setStyleSheet("color : grey")
-
-        self.button_close = QPushButton()
-        self.button_close.setStyleSheet(TomatoClose)
-        self.button_close.setFixedSize(int(20), int(20))
-        #self.button_close.setFixedSize(int(20*size_factor), int(20*size_factor))
-        self.button_close.setIcon(QIcon(os.path.join(basedir,'res/icons/close_icon.png')))
-        self.button_close.setIconSize(QSize(int(20), int(20)))
-        #self.button_close.setIconSize(QSize(int(20*size_factor), int(20*size_factor)))
-        self.button_close.clicked.connect(self.close_remind)
-
-        hbox_r6.addWidget(self.label_on)
-        hbox_r6.addWidget(self.button_close, Qt.AlignTop | Qt.AlignRight)
-
-        vbox_r2.addLayout(hbox_r6)
-        vbox_r2.addWidget(QHLine())
-        self.e2 = QTextEdit()
-        #self.e2.setMaxLength(14)
-        self.e2.setAlignment(Qt.AlignLeft)
-        self.e2.setFont(QFont("SimSun",12))
-        self.e2.textChanged.connect(self.save_remindme)
-        vbox_r2.addWidget(self.e2)
-
-        hbox_all = QHBoxLayout()
-        hbox_all.addLayout(vbox_r)
-        #hbox_all.addStretch(0.5)
-        #hbox_all.addWidget(QVLine())
-        #hbox_all.addStretch(0.5)
-        hbox_all.addLayout(vbox_r2)
-
-        self.centralwidget.setLayout(hbox_all)
-        vbox_window = QVBoxLayout()
-        vbox_window.addWidget(self.centralwidget)
-        self.setLayout(vbox_window)
-        #self.setFixedSize(450*size_factor,300*size_factor)
         self.setAutoFillBackground(False)
         self.setAttribute(Qt.WA_TranslucentBackground, True)
-        if settings.platform == 'win32':
+        if platform == 'win32':
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.SubWindow | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint)
         else:
             self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint)
 
-        if os.path.isfile(os.path.join(configdir,'data/remindme.txt')):
-            f = open(os.path.join(configdir,'data/remindme.txt'),'r', encoding='UTF-8')
-            texts = f.read()
-            f.close()
-            texts = texts.lstrip('\n')
-            self.e2.setPlainText(texts)
-        else:
-            f = open(os.path.join(configdir,'data/remindme.txt'),'w', encoding='UTF-8')
-            f.write('')
-            f.close()
+    def _load(self):
+        try:
+            if os.path.isfile(self.memo_path):
+                with open(self.memo_path, 'r', encoding='UTF-8') as f:
+                    self.text_edit.setPlainText(f.read())
+        except Exception:
+            pass
+
+    def _save(self):
+        try:
+            with open(self.memo_path, 'w', encoding='UTF-8') as f:
+                f.write(self.text_edit.toPlainText())
+        except Exception:
+            pass
 
     def mousePressEvent(self, event):
-        """
-        鼠标点击事件
-        :param event: 事件
-        :return:
-        """
         if event.button() == Qt.LeftButton:
-            # 左键绑定拖拽
             self.is_follow_mouse = True
             self.mouse_drag_pos = event.globalPos() - self.pos()
             event.accept()
             self.setCursor(QCursor(Qt.ArrowCursor))
 
     def mouseMoveEvent(self, event):
-        """
-        鼠标移动事件, 左键且绑定跟随, 移动窗体
-        :param event:
-        :return:
-        """
         if Qt.LeftButton and self.is_follow_mouse:
             self.move(event.globalPos() - self.mouse_drag_pos)
             event.accept()
 
     def mouseReleaseEvent(self, event):
-        """
-        松开鼠标操作
-        :param event:
-        :return:
-        """
         self.is_follow_mouse = False
         self.setCursor(QCursor(Qt.ArrowCursor))
 
-    def initial_task(self):
-        f = open(os.path.join(configdir,'data/remindme.txt'),'r', encoding='UTF-8')
-        texts = f.readlines()
-        f.close()
-        for line in texts:
-            line = line.rstrip('\n')
-            if line.startswith(self.tr('#Repeat')):
-                line = line.split(' ')
-                if line[-1] == '-':
-                    line += ['']
 
-                if line[1] == self.tr('at every'):
-                    self.confirm_remind.emit('repeat_point', 0, int(line[2]), line[-1])
+_ReminderQSS = """
+#reminderFrame {
+    background: rgba(255, 255, 255, 235);
+    border-radius: 12px;
+    border: 1px solid rgba(0, 0, 0, 25);
+}
+#reminderFrame QLabel#reminderTitle {
+    font-size: 15px;
+    font-weight: 600;
+    color: #333333;
+}
+#reminderFrame QPushButton#confirmButton {
+    border: 1px solid #009faa;
+    border-radius: 6px;
+    background: transparent;
+    color: #009faa;
+    font-size: 13px;
+    padding: 4px 14px;
+}
+#reminderFrame QPushButton#confirmButton:hover {
+    background: rgba(0, 159, 170, 15);
+}
+#reminderFrame QPushButton#confirmButton:disabled {
+    border: 1px solid rgba(0, 0, 0, 20);
+    color: #999999;
+    background: transparent;
+}
+QScrollArea#reminderScroll, QScrollArea#reminderScroll > QWidget > QWidget {
+    border: none;
+    background: transparent;
+}
+#reminderList {
+    background: transparent;
+}
+ReminderItem {
+    background: white;
+    border-radius: 8px;
+    border: 1px solid rgba(0, 0, 0, 18);
+}
+ReminderItem QLineEdit {
+    border: none;
+    border-bottom: 1px solid rgba(0, 0, 0, 30);
+    background: transparent;
+    padding: 4px 2px;
+    font-size: 13px;
+    color: #333333;
+}
+ReminderItem QLineEdit:focus {
+    border-bottom: 2px solid #009faa;
+}
+ReminderItem QDateTimeEdit {
+    border: 1px solid rgba(0, 0, 0, 25);
+    border-radius: 6px;
+    background: white;
+    padding: 2px 6px;
+    font-size: 12px;
+    color: #333333;
+}
+ReminderItem QPushButton#deleteButton {
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: #d93025;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+ReminderItem QPushButton#deleteButton:hover {
+    background: rgba(217, 48, 37, 15);
+}
+ReminderItem[completed="true"] QLineEdit {
+    color: #a0a0a0;
+    border-bottom: 1px solid rgba(0, 0, 0, 12);
+}
+ReminderItem[completed="true"] QDateTimeEdit {
+    color: #a0a0a0;
+    background: rgba(0, 0, 0, 3);
+}
+"""
 
-                elif line[2] == self.tr('every interval'):
-                    self.confirm_remind.emit('repeat_interval', 0, int(line[2]), line[-1])
+class ReminderItem(QWidget):
+    """单条提醒：事项文本框 + 日期时间选择"""
+    removed = Signal(QWidget, name='removed')
+
+    def __init__(self, text='', dt_str=None, completed=False, parent=None):
+        super().__init__(parent)
+        self.completed = False
+
+        self.text_edit = QLineEdit(text)
+        self.text_edit.setPlaceholderText(self.tr('What to remind?'))
+        self.text_edit.setClearButtonEnabled(True)
+
+        dt = self._parse_dt(dt_str) if dt_str else (datetime.now() + timedelta(hours=1))
+        self.dt_edit = QDateTimeEdit(QDateTime(dt.year, dt.month, dt.day, dt.hour, dt.minute, dt.second))
+        self.dt_edit.setDisplayFormat('yyyy-MM-dd HH:mm')
+        self.dt_edit.setCalendarPopup(True)
+        self.dt_edit.setMinimumWidth(150)
+
+        self.delete_button = QPushButton(self.tr('Delete'))
+        self.delete_button.setObjectName('deleteButton')
+        self.delete_button.setCursor(Qt.PointingHandCursor)
+        self.delete_button.clicked.connect(lambda: self.removed.emit(self))
+
+        hbox = QHBoxLayout(self)
+        hbox.setContentsMargins(10, 8, 10, 8)
+        hbox.setSpacing(8)
+        hbox.addWidget(self.text_edit, 1)
+        hbox.addWidget(self.dt_edit)
+        hbox.addWidget(self.delete_button)
+
+        if completed:
+            self.set_completed(True)
+
+    def set_completed(self, completed):
+        """标记为已完成：锁定内容并置灰显示（保留在列表中）"""
+        self.completed = completed
+        self.setProperty('completed', completed)
+        self.style().unpolish(self)
+        self.style().polish(self)
+        self.text_edit.setReadOnly(completed)
+        self.dt_edit.setEnabled(not completed)
+
+    def get_text(self):
+        return self.text_edit.text().strip()
+
+    def get_datetime(self):
+        qdt = self.dt_edit.dateTime()
+        return datetime(qdt.date().year(), qdt.date().month(), qdt.date().day(),
+                        qdt.time().hour(), qdt.time().minute())
+
+    def _parse_dt(self, s):
+        try:
+            return datetime.strptime(s, '%Y-%m-%d %H:%M')
+        except Exception:
+            return datetime.now() + timedelta(hours=1)
 
 
-    # uncheck method
-    def uncheck(self, state):
-        # checking if state is checked
-        if state == Qt.Checked:
-            # if first check box is selected
-            if self.sender() == self.checkA:
-  
-                # making other check box to uncheck
-                self.checkB.setChecked(False)
-                self.checkC.setChecked(False)
-  
-            # if second check box is selected
-            elif self.sender() == self.checkB:
-  
-                # making other check box to uncheck
-                self.checkA.setChecked(False)
-                self.checkC.setChecked(False)
+class ReminderWindow(QWidget):
+    """提醒：多实例（事项 + 日期时间），到点触发通知"""
+    close_reminder = Signal(name='close_reminder')
+    remind_trigger = Signal(str, name='remind_trigger')
 
-            elif self.sender() == self.checkC:
-  
-                # making other check box to uncheck
-                self.checkA.setChecked(False)
-                self.checkB.setChecked(False)
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.is_follow_mouse = False
+        self.reminder_path = os.path.join(configdir, 'data/reminders.json')
+        self._items = []
 
-            elif self.sender() == self.check1:
-                self.check2.setChecked(False)
+        self.centralwidget = QFrame()
+        self.centralwidget.setObjectName('reminderFrame')
+        self.centralwidget.setStyleSheet(_ReminderQSS)
 
-            elif self.sender() == self.check2:
-                self.check1.setChecked(False)
+        vbox = QVBoxLayout(self.centralwidget)
+        vbox.setContentsMargins(12, 10, 12, 12)
+        vbox.setSpacing(10)
 
-    def confirm(self):
-        if self.checkA.isChecked():
-            #hs = self.countdown_h.value()
-            #ms = self.countdown_m.value()
-            hs = self.countdown_h.text()
-            ms = self.countdown_m.text()
-            if hs == '' and ms=='':
-                return
-            else:
-                try:
-                    hs = int(hs)
-                except:
-                    hs=0
-                try: 
-                    ms = int(ms)
-                except:
-                    ms=0
+        # 标题栏
+        hbox_title = QHBoxLayout()
+        hbox_title.setSpacing(6)
+        icon = QLabel()
+        image = QImage()
+        image.load(os.path.join(basedir, 'res/icons/remind_icon.png'))
+        icon.setPixmap(QPixmap.fromImage(image))
+        icon.setFixedSize(22, 22)
+        icon.setScaledContents(True)
+        self.title_label = QLabel(self.tr('Reminders'))
+        self.title_label.setObjectName('reminderTitle')
+        self.close_button = QPushButton()
+        self.close_button.setStyleSheet(CloseButtonStyle)
+        self.close_button.setFixedSize(20, 20)
+        self.close_button.setIcon(QIcon(os.path.join(basedir, 'res/icons/close_icon.png')))
+        self.close_button.setIconSize(QSize(12, 12))
+        self.close_button.setCursor(Qt.PointingHandCursor)
+        self.close_button.clicked.connect(self.close_reminder)
+        hbox_title.addWidget(icon)
+        hbox_title.addWidget(self.title_label)
+        hbox_title.addStretch(1)
+        hbox_title.addWidget(self.close_button)
 
-            timeset = datetime.now() + timedelta(hours=hs, minutes=ms)
-            timeset = timeset.strftime("%m/%d %H:%M")
-            remind_text = self.e1.text()
-            current_text = self.e2.toPlainText()
-            current_text += '%s - %s\n'%(timeset, remind_text)
-            self.e2.setPlainText(current_text)
-            self.confirm_remind.emit('range', hs, ms, remind_text)
+        # 草稿输入行（文本框 + 日期时间 + 确认按钮）
+        self.draft_text = QLineEdit()
+        self.draft_text.setPlaceholderText(self.tr('What to remind?'))
+        self.draft_text.setClearButtonEnabled(True)
+        self.draft_text.textChanged.connect(self._update_confirm_btn)
 
-        elif self.checkB.isChecked():
-            #hs = self.time_h.value()
-            #ms = self.time_m.value()
-            hs = self.time_h.text()
-            ms = self.time_m.text()
-            if hs == '' or ms=='':
-                return
+        now_dt = datetime.now() + timedelta(hours=1)
+        self.draft_dt = QDateTimeEdit(QDateTime(now_dt.year, now_dt.month, now_dt.day,
+                                                now_dt.hour, now_dt.minute, now_dt.second))
+        self.draft_dt.setDisplayFormat('yyyy-MM-dd HH:mm')
+        self.draft_dt.setCalendarPopup(True)
+        self.draft_dt.setMinimumWidth(150)
 
-            else:
-                hs = int(hs)
-                ms = int(ms)
-                now = datetime.now()
-                time_torun = datetime(year=now.year, month=now.month, day=now.day,
-                                      hour=hs, minute=ms, second=now.second)
-                time_diff = time_torun - datetime.now()
-                if time_diff <= timedelta(0):
-                    time_torun = time_torun + timedelta(days=1)
-                timeset = time_torun.strftime("%m/%d %H:%M")
-                remind_text = self.e1.text()
-                current_text = self.e2.toPlainText()
-                current_text += '%s - %s\n'%(timeset, remind_text)
-                self.e2.setPlainText(current_text)
-                self.confirm_remind.emit('point', hs, ms, remind_text)
+        self.confirm_button = QPushButton(self.tr('Confirm'))
+        self.confirm_button.setObjectName('confirmButton')
+        self.confirm_button.setCursor(Qt.PointingHandCursor)
+        self.confirm_button.setEnabled(False)
+        self.confirm_button.clicked.connect(self._confirm_draft)
 
-        elif self.checkC.isChecked():
-            remind_text = self.e1.text()
-            current_text = self.e2.toPlainText()
-            if self.check1.isChecked() and self.every_min.text() != '':
-                current_text += self.tr('#Repeat') + " " + f"{self.tr('at every')} {int(self.every_min.text())} {self.tr('minute mark')} - {remind_text}\n"
-                self.confirm_remind.emit('repeat_point', 0, int(self.every_min.text()), remind_text)
+        hbox_draft = QHBoxLayout()
+        hbox_draft.setContentsMargins(0, 0, 0, 0)
+        hbox_draft.setSpacing(8)
+        hbox_draft.addWidget(self.draft_text, 1)
+        hbox_draft.addWidget(self.draft_dt)
+        hbox_draft.addWidget(self.confirm_button)
 
-            elif self.check2.isChecked() and self.interval_min.text() != '':
-                current_text += self.tr('#Repeat') + " " + f"{self.tr('every interval')} {int(self.interval_min.text())} {self.tr('minute(s)')} - {remind_text}\n"
-                self.confirm_remind.emit('repeat_interval', 0, int(self.interval_min.text()), remind_text)
+        # 列表
+        self.scroll_area = QScrollArea()
+        self.scroll_area.setObjectName('reminderScroll')
+        self.scroll_area.setWidgetResizable(True)
+        self.scroll_area.setFrameShape(QFrame.NoFrame)
+        self.scroll_area.viewport().setAutoFillBackground(False)
+        self.list_widget = QWidget()
+        self.list_widget.setObjectName('reminderList')
+        self.list_widget.setAutoFillBackground(False)
+        self.list_layout = QVBoxLayout(self.list_widget)
+        self.list_layout.setContentsMargins(0, 0, 0, 0)
+        self.list_layout.setSpacing(8)
+        self.list_layout.addStretch(1)
+        self.scroll_area.setWidget(self.list_widget)
 
-            self.e2.setPlainText(current_text)
+        vbox.addLayout(hbox_title)
+        vbox.addLayout(hbox_draft)
+        vbox.addWidget(self.scroll_area, 1)
 
-    def save_remindme(self):
-        #print(self.e2.toPlainText()=='')
-        f = open(os.path.join(configdir,'data/remindme.txt'),'w', encoding='UTF-8')
-        f.write(self.e2.toPlainText())
-        f.close()
+        outer = QVBoxLayout(self)
+        outer.setContentsMargins(0, 0, 0, 0)
+        outer.addWidget(self.centralwidget)
+        self.setFixedSize(520, 480)
 
+        self.setAutoFillBackground(False)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        if platform == 'win32':
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.SubWindow | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint)
+        else:
+            self.setWindowFlags(Qt.FramelessWindowHint | Qt.WindowStaysOnTopHint | Qt.NoDropShadowWindowHint)
 
+        self._load()
 
+        # 到期检查（20s 轮询）
+        self.check_timer = QTimer(self)
+        self.check_timer.timeout.connect(self._check_reminders)
+        self.check_timer.start(20000)
+
+    def _update_confirm_btn(self, text=''):
+        """只有事项非空时才允许确认"""
+        self.confirm_button.setEnabled(bool(self.draft_text.text().strip()))
+
+    def _confirm_draft(self):
+        text = self.draft_text.text().strip()
+        if not text:
+            return
+        qdt = self.draft_dt.dateTime()
+        dt_str = datetime(qdt.date().year(), qdt.date().month(), qdt.date().day(),
+                          qdt.time().hour(), qdt.time().minute()).strftime('%Y-%m-%d %H:%M')
+        self._add_item(text, dt_str)
+        # 清空草稿并重置时间
+        self.draft_text.clear()
+        new_dt = datetime.now() + timedelta(hours=1)
+        self.draft_dt.setDateTime(QDateTime(new_dt.year, new_dt.month, new_dt.day,
+                                            new_dt.hour, new_dt.minute, new_dt.second))
+
+    def _add_item(self, text='', dt_str=None, completed=False):
+        item = ReminderItem(text, dt_str, completed)
+        item.removed.connect(self._remove_item)
+        self.list_layout.insertWidget(self.list_layout.count() - 1, item)
+        self._items.append(item)
+        self._save()
+        return item
+
+    def _remove_item(self, item):
+        if item in self._items:
+            self._items.remove(item)
+            self.list_layout.removeWidget(item)
+            item.deleteLater()
+            self._save()
+
+    def _clear_items(self):
+        for item in self._items[:]:
+            self._remove_item(item)
+
+    def _save(self):
+        try:
+            data = [{'text': it.get_text(), 'datetime': it.get_datetime().strftime('%Y-%m-%d %H:%M'),
+                     'completed': it.completed}
+                    for it in self._items]
+            with open(self.reminder_path, 'w', encoding='UTF-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
+    def _load(self):
+        self._clear_items()
+        try:
+            if os.path.isfile(self.reminder_path):
+                with open(self.reminder_path, 'r', encoding='UTF-8') as f:
+                    data = json.load(f)
+                for d in data:
+                    self._add_item(d.get('text', ''), d.get('datetime'), d.get('completed', False))
+        except Exception:
+            pass
+
+    def _check_reminders(self):
+        now = datetime.now()
+        for item in self._items[:]:
+            if not item.completed and item.get_datetime() <= now:
+                text = item.get_text()
+                if text:
+                    self.remind_trigger.emit(text)
+                # 完成后保留在列表，标记为已完成
+                item.set_completed(True)
+                self._save()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.is_follow_mouse = True
+            self.mouse_drag_pos = event.globalPos() - self.pos()
+            event.accept()
+            self.setCursor(QCursor(Qt.ArrowCursor))
+
+    def mouseMoveEvent(self, event):
+        if Qt.LeftButton and self.is_follow_mouse:
+            self.move(event.globalPos() - self.mouse_drag_pos)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        self.is_follow_mouse = False
+        self.setCursor(QCursor(Qt.ArrowCursor))
 
 
 ##############################

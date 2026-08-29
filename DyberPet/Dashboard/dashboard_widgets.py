@@ -212,7 +212,7 @@ class StatusCard(SimpleCardWidget):
     def __init__(self, parent=None):
         self.petname = settings.petname
         super().__init__(parent)
-        self.setBorderRadius(5)
+        self.setBorderRadius(8)
         self.setObjectName("StatusCard")
 
         self.hBoxLayout = QHBoxLayout(self)
@@ -1503,7 +1503,7 @@ class ShopItemWidget(SimpleCardWidget):
     def __init__(self, cell_index, item_config, parent=None):
 
         super().__init__(parent)
-        self.setBorderRadius(5)
+        self.setBorderRadius(8)
         self.setObjectName("ShopCard")
 
         self.cell_index = cell_index
@@ -1907,7 +1907,7 @@ class filterView(SimpleCardWidget):
 
     def __init__(self, parent=None):
         super().__init__(parent)
-        self.setBorderRadius(5)
+        self.setBorderRadius(8)
         self.setObjectName("filterView")
         self.filter_dict = {}
 
@@ -2290,7 +2290,7 @@ class ActionCard(SimpleCardWidget):
     def __init__(self, act_name, act_config, card_width, customized, parent=None):
 
         super().__init__(parent)
-        self.setBorderRadius(5)
+        self.setBorderRadius(8)
         self.setObjectName("ActionCard")
 
         self.act_name = act_name
