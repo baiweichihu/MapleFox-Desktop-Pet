@@ -168,7 +168,7 @@ class SettingInterface(ScrollArea):
             lang_choices,
             lang_choices,
             FIF.LANGUAGE,
-            self.tr('Language/语言'),
+            self.tr('Language'),
             self.tr('Set your preferred language for UI'),
             parent=self.PersonalGroup
         )
@@ -267,27 +267,37 @@ class SettingInterface(ScrollArea):
         settings.fixdragspeedx, settings.fixdragspeedy = value*0.01, value*0.01
         settings.save_settings()
 
-    def _is_chinese(self):
-        """当前是否中文界面"""
-        lang = settings.language_code
-        return bool(lang and lang.startswith('zh'))
+    @staticmethod
+    def _current_lang():
+        """当前语言前缀(zh/ja/en 等)"""
+        lang = settings.language_code or ''
+        return lang.split('_')[0]
 
     def _get_pet_size_texts(self):
         """根据当前语言返回桌宠大小三档的显示文本"""
-        if self._is_chinese():
+        lang = self._current_lang()
+        if lang == 'zh':
+            return ['小 (200px)', '中 (300px)', '大 (400px)']
+        if lang == 'ja':
             return ['小 (200px)', '中 (300px)', '大 (400px)']
         return ['Small (200px)', 'Medium (300px)', 'Large (400px)']
 
     def _get_pet_size_title(self):
         """根据当前语言返回桌宠大小卡片的标题"""
-        if self._is_chinese():
+        lang = self._current_lang()
+        if lang == 'zh':
             return '桌宠大小'
+        if lang == 'ja':
+            return 'ペットサイズ'
         return 'Pet Size'
 
     def _get_pet_size_subtitle(self):
         """根据当前语言返回桌宠大小卡片的说明文字"""
-        if self._is_chinese():
+        lang = self._current_lang()
+        if lang == 'zh':
             return '选择桌宠的显示大小'
+        if lang == 'ja':
+            return 'ペットの表示サイズを選択'
         return 'Select the display size of the pet'
 
     def _scale_to_index(self, scale_value):
@@ -329,7 +339,7 @@ class SettingInterface(ScrollArea):
         """ show restart tooltip """
         InfoBar.warning(
             '',
-            self.tr('Configuration takes effect after restart\n此设置在重启后生效'),
+            self.tr('Configuration takes effect after restart'),
             duration=3000,
             position=InfoBarPosition.BOTTOM,
             parent=self.window()

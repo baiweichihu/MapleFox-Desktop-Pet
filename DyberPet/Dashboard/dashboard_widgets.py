@@ -1130,16 +1130,16 @@ class itemTabWidget(QWidget):
     def changeButton(self, item_inuse=False):
         if self.selected_cell is None:
             self.set_confirm.emit(0, 0)
-            #self.button_confirm.setText(self.tr('使用'))
+            #self.button_confirm.setText(self.tr('Use'))
             #self.button_confirm.setDisabled(True)
     
         else:
             if item_inuse:
                 self.set_confirm.emit(1, 1)
-                #self.button_confirm.setText(self.tr('收回'))
+                #self.button_confirm.setText(self.tr('Withdraw'))
             else:
                 self.set_confirm.emit(0, 1)
-                #self.button_confirm.setText(self.tr('使用'))
+                #self.button_confirm.setText(self.tr('Use'))
             #self.button_confirm.setDisabled(False)
 
     def acc_withdrawed(self, item_name):
@@ -1168,7 +1168,7 @@ class itemTabWidget(QWidget):
         if len(self.items_data.item_dict[item_name_selected]['pet_limit']) != 0:
             pet_list = self.items_data.item_dict[item_name_selected]['pet_limit']
             if settings.petname not in pet_list:
-                self.item_note.emit('system', f"[{item_name_selected}] {self.tr('仅能在切换至')}' [{'、'.join(pet_list)}] {self.tr('后使用哦')}")
+                self.item_note.emit('system', self.tr('Only available after switching to %s') % '、'.join(pet_list))
                 return
 
         # Check item type

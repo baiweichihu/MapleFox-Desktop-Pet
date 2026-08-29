@@ -361,7 +361,7 @@ def change_translator(language_code):
         translator = None
     else:
         translator = QtCore.QTranslator()
-        translator.load(QtCore.QLocale(language_code), "langs", ".", os.path.join(basedir, "res/language/"))
+        translator.load(os.path.join(basedir, "res/language/langs.{}.qm".format(language_code)))
 
         global TIER_NAMES, HUNGERSTR, FAVORSTR
         TIER_NAMES = [translator.translate("others", i) for i in TIER_NAMES] #.encode('utf-8')

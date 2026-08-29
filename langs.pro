@@ -20,4 +20,6 @@ SOURCES += DyberPet/DyberSettings/DyberControlPanel.py \
 
 
 
-TRANSLATIONS += res/language/langs.zh_CN.blank.ts
+TRANSLATIONS += res/language/langs.zh_CN.blank.ts \
+        res/language/langs.ja_JP.ts \
+        res/language/langs.zh_TW.ts

@@ -698,11 +698,11 @@ class Remindme(QWidget):
 
         vbox_r = QVBoxLayout()
 
-        self.checkA = QCheckBox(self.tr("一段时间后提醒"), self)
+        self.checkA = QCheckBox(self.tr("Remind me after a while"), self)
         #self.checkA.setFont(QFont('宋体', all_font_size))
-        self.checkB = QCheckBox(self.tr("定时提醒"), self)
+        self.checkB = QCheckBox(self.tr("Timed reminder"), self)
         #self.checkB.setFont(QFont('宋体', all_font_size))
-        self.checkC = QCheckBox(self.tr("间隔重复"), self)
+        self.checkC = QCheckBox(self.tr("Repeat at intervals"), self)
         #self.checkC.setFont(QFont('宋体', all_font_size))
         self.checkA.stateChanged.connect(self.uncheck)
         self.checkB.stateChanged.connect(self.uncheck)
@@ -710,7 +710,7 @@ class Remindme(QWidget):
 
         # 标题栏
         hbox_r0 = QHBoxLayout()
-        self.title = QLabel(self.tr("提醒事项"))
+        self.title = QLabel(self.tr("Reminders"))
         self.title.setStyleSheet(TomatoTitle)
         icon = QLabel()
         #icon.setStyleSheet(TomatoTitle)
@@ -746,11 +746,11 @@ class Remindme(QWidget):
         #self.countdown_m.setFixedSize(int(38*size_factor), int(38*size_factor))
 
         hbox_r1.addWidget(self.countdown_h)
-        self.label_h = QLabel(self.tr('小时'))
+        self.label_h = QLabel(self.tr('hour(s)'))
         #label_h.setFont(QFont('宋体', all_font_size))
         hbox_r1.addWidget(self.label_h)
         hbox_r1.addWidget(self.countdown_m)
-        self.label_m = QLabel(self.tr('分钟后'))
+        self.label_m = QLabel(self.tr('minute(s) later'))
         #label_m.setFont(QFont('宋体', all_font_size))
         hbox_r1.addWidget(self.label_m)
         hbox_r1.addStretch(10)
@@ -776,23 +776,23 @@ class Remindme(QWidget):
         self.time_m.setFixedSize(int(38), int(38))
         #self.time_m.setFixedSize(int(38*size_factor), int(38*size_factor))
 
-        self.label_d = QLabel(self.tr('到'))
+        self.label_d = QLabel(self.tr('to'))
         #label_d.setFont(QFont('宋体', all_font_size))
         hbox_r2.addWidget(self.label_d)
         hbox_r2.addWidget(self.time_h)
-        self.label_h2 = QLabel(self.tr('点'))
+        self.label_h2 = QLabel(self.tr("o'clock"))
         #label_h.setFont(QFont('宋体', all_font_size))
         hbox_r2.addWidget(self.label_h2)
         hbox_r2.addWidget(self.time_m)
-        self.label_m2 = QLabel(self.tr('分'))
+        self.label_m2 = QLabel(self.tr('minute(s)'))
         #label_m.setFont(QFont('宋体', all_font_size))
         hbox_r2.addWidget(self.label_m2)
         hbox_r2.addStretch(10)
 
         hbox_r5 = QHBoxLayout()
-        self.check1 = QCheckBox(self.tr("在"), self) # xx 分时
+        self.check1 = QCheckBox(self.tr("at"), self) # xx 分时
         #self.check1.setFont(QFont('宋体', all_font_size))
-        self.check2 = QCheckBox(self.tr("每"), self)
+        self.check2 = QCheckBox(self.tr("Every"), self)
         #self.check2.setFont(QFont('宋体', all_font_size))
         self.check1.stateChanged.connect(self.uncheck)
         self.check2.stateChanged.connect(self.uncheck)
@@ -807,7 +807,7 @@ class Remindme(QWidget):
         #self.every_min.setFixedSize(int(38*size_factor), int(38*size_factor))
         self.every_min.setFixedSize(int(38), int(38))
 
-        self.label_em = QLabel(self.tr('分时'))
+        self.label_em = QLabel(self.tr('minute mark'))
         #label_em.setFont(QFont('宋体', all_font_size))
 
         self.interval_min = QLineEdit()
@@ -820,7 +820,7 @@ class Remindme(QWidget):
         #self.interval_min.setFixedSize(int(57*size_factor), int(38*size_factor))
         self.interval_min.setFixedSize(int(57), int(38))
 
-        self.label_im = QLabel(self.tr('分钟'))
+        self.label_im = QLabel(self.tr('minute(s)'))
         #label_im.setFont(QFont('宋体', all_font_size))
         hbox_r5.addWidget(self.check1)
         hbox_r5.addWidget(self.every_min)
@@ -831,7 +831,7 @@ class Remindme(QWidget):
         hbox_r5.addStretch(10)
 
         #hbox_r3 = QHBoxLayout()
-        self.button_confirm = QPushButton(self.tr("确定"))
+        self.button_confirm = QPushButton(self.tr("Confirm"))
         #self.button_confirm.setFont(QFont('宋体', all_font_size))
         self.button_confirm.clicked.connect(self.confirm)
         #self.button_cancel = QPushButton("关闭")
@@ -845,7 +845,7 @@ class Remindme(QWidget):
         self.e1.setFixedSize(int(250), int(38))
         #self.e1.setFixedSize(int(250*size_factor), int(38*size_factor))
         self.e1.setAlignment(Qt.AlignLeft)
-        self.e1.setFont(QFont(self.tr("宋体"),12))
+        self.e1.setFont(QFont("SimSun",12))
         hbox_r4.addWidget(self.e1)
         hbox_r4.addWidget(self.button_confirm)
         hbox_r4.addStretch(1)
@@ -865,7 +865,7 @@ class Remindme(QWidget):
         vbox_r.addLayout(hbox_r5)
         vbox_r.addStretch(2)
 
-        self.label_r = QLabel(self.tr('提醒我：'))
+        self.label_r = QLabel(self.tr('Remind me:'))
         #label_r.setFont(QFont('宋体', all_font_size))
         #label_r.setStyleSheet("color : grey")
         vbox_r.addWidget(self.label_r)
@@ -889,8 +889,8 @@ class Remindme(QWidget):
         #icon.setFixedSize(int(25*size_factor), int(25*size_factor))
         hbox_r6.addWidget(icon, Qt.AlignBottom | Qt.AlignLeft)
 
-        self.label_on = QLabel(self.tr('备忘录'))
-        self.label_on.setToolTip(self.tr('备忘录自动保存，\n下次打开时自动载入内容和提醒事项'))
+        self.label_on = QLabel(self.tr('Memo'))
+        self.label_on.setToolTip(self.tr('Memo auto-saves and reloads its content and reminders on next open'))
         self.label_on.setStyleSheet(TomatoTitle)
         self.label_on.setFixedHeight(int(25)) #*size_factor))
         #label_on.setFont(QFont('宋体', all_font_size))
@@ -913,7 +913,7 @@ class Remindme(QWidget):
         self.e2 = QTextEdit()
         #self.e2.setMaxLength(14)
         self.e2.setAlignment(Qt.AlignLeft)
-        self.e2.setFont(QFont(self.tr("宋体"),12))
+        self.e2.setFont(QFont("SimSun",12))
         self.e2.textChanged.connect(self.save_remindme)
         vbox_r2.addWidget(self.e2)
 
@@ -985,15 +985,15 @@ class Remindme(QWidget):
         f.close()
         for line in texts:
             line = line.rstrip('\n')
-            if line.startswith(self.tr('#重复')):
+            if line.startswith(self.tr('#Repeat')):
                 line = line.split(' ')
                 if line[-1] == '-':
                     line += ['']
 
-                if line[1] == self.tr('每到'):
+                if line[1] == self.tr('at every'):
                     self.confirm_remind.emit('repeat_point', 0, int(line[2]), line[-1])
 
-                elif line[2] == self.tr('每隔'):
+                elif line[2] == self.tr('every interval'):
                     self.confirm_remind.emit('repeat_interval', 0, int(line[2]), line[-1])
 
 
@@ -1081,11 +1081,11 @@ class Remindme(QWidget):
             remind_text = self.e1.text()
             current_text = self.e2.toPlainText()
             if self.check1.isChecked() and self.every_min.text() != '':
-                current_text += self.tr('#重复') + " " + f"{self.tr('每到')} {int(self.every_min.text())} {self.tr('分时')} - {remind_text}\n"
+                current_text += self.tr('#Repeat') + " " + f"{self.tr('at every')} {int(self.every_min.text())} {self.tr('minute mark')} - {remind_text}\n"
                 self.confirm_remind.emit('repeat_point', 0, int(self.every_min.text()), remind_text)
 
             elif self.check2.isChecked() and self.interval_min.text() != '':
-                current_text += self.tr('#重复') + " " + f"{self.tr('每隔')} {int(self.interval_min.text())} {self.tr('分钟')} - {remind_text}\n"
+                current_text += self.tr('#Repeat') + " " + f"{self.tr('every interval')} {int(self.interval_min.text())} {self.tr('minute(s)')} - {remind_text}\n"
                 self.confirm_remind.emit('repeat_interval', 0, int(self.interval_min.text()), remind_text)
 
             self.e2.setPlainText(current_text)
@@ -1540,7 +1540,7 @@ class Inventory(QWidget):
 
 
         hbox = QHBoxLayout()
-        self.button_confirm = QPushButton(self.tr("使用")) #, objectName='InvenButton')
+        self.button_confirm = QPushButton(self.tr("Use")) #, objectName='InvenButton')
         #self.button_confirm.setFont(QFont('黑体', all_font_size))
         self.button_confirm.clicked.connect(self.confirm)
         self.button_confirm.setDisabled(True)
@@ -1560,7 +1560,7 @@ class Inventory(QWidget):
                                                 background-color: lightgreen;\
                                             }")
         '''
-        self.button_cancel = QPushButton(self.tr("关闭")) #, objectName='InvenButton')
+        self.button_cancel = QPushButton(self.tr("Close")) #, objectName='InvenButton')
         #self.button_cancel.setStyleSheet(objectName='InvenButton')
 
         #self.button_cancel.setFont(QFont('黑体', all_font_size))
@@ -1572,7 +1572,7 @@ class Inventory(QWidget):
         hbox.addStretch()
 
         hbox_0 = QHBoxLayout()
-        self.title = QLabel(self.tr("宠物背包"))
+        self.title = QLabel(self.tr("Pet Backpack"))
         self.title.setStyleSheet(IvenTitle)
         icon = QLabel()
         icon.setStyleSheet(IvenTitle)
@@ -1719,14 +1719,14 @@ class Inventory(QWidget):
 
     def changeButton(self, clct_inuse=False):
         if self.selected_cell is None:
-            self.button_confirm.setText(self.tr('使用'))
+            self.button_confirm.setText(self.tr('Use'))
             self.button_confirm.setDisabled(True)
     
         else:
             if clct_inuse:
-                self.button_confirm.setText(self.tr('收回'))
+                self.button_confirm.setText(self.tr('Withdraw'))
             else:
-                self.button_confirm.setText(self.tr('使用'))
+                self.button_confirm.setText(self.tr('Use'))
             self.button_confirm.setDisabled(False)
 
     def acc_withdrawed(self, item_name):
@@ -1746,7 +1746,7 @@ class Inventory(QWidget):
         if len(self.items_data.item_dict[item_name_selected]['pet_limit']) != 0:
             pet_list = self.items_data.item_dict[item_name_selected]['pet_limit']
             if settings.petname not in pet_list:
-                self.item_note.emit('system', f"[{item_name_selected}] {self.tr('仅能在切换至')}' [{'、'.join(pet_list)}] {self.tr('后使用哦')}")
+                self.item_note.emit('system', self.tr('Only available after switching to %s') % '、'.join(pet_list))
                 return
 
         if self.items_data.item_dict[item_name_selected]['item_type'] == 'consumable':
