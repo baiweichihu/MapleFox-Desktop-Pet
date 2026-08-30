@@ -21,6 +21,7 @@ from PySide6.QtGui import QImage, QPixmap, QIcon, QCursor, QColor, QPainter
 from qfluentwidgets import TextWrap, TransparentToolButton, BodyLabel
 from qfluentwidgets import FluentIcon as FIF
 
+from DyberPet.style.theme import bubble_frame_qss, CARD_RADIUS
 from DyberPet.utils import *
 from DyberPet.conf import *
 
@@ -393,19 +394,7 @@ class DyberToaster(QFrame):
 
     def __initLayout(self):
         frame = QFrame()
-        frame.setStyleSheet('''
-            QFrame {
-                border: 1px solid rgba(0, 0, 0, 25);
-                border-radius: 8px;
-                background: rgba(255, 255, 255, 245);
-            }
-            QLabel{
-                border: 0px;
-                font: 14px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
-                color: black;
-                background-color: transparent;
-            }
-        ''')
+        frame.setStyleSheet(bubble_frame_qss(radius=10))
         # Layout
         self.hBoxLayout = QHBoxLayout()
         self.hBoxLayout.setContentsMargins(10, 10, 10, 10)
@@ -631,19 +620,7 @@ class BubbleText(QFrame):
 
     def __initLayout(self):
         frame = QFrame()
-        frame.setStyleSheet('''
-            QFrame {
-                border: 1px solid rgba(0, 0, 0, 25);
-                border-radius: 10px;
-                background: rgba(255, 255, 255, 245);
-            }
-            QLabel{
-                border: 0px;
-                font: 14px 'Segoe UI', 'Microsoft YaHei', 'PingFang SC';
-                color: rgba(25, 25, 25, 245);
-                background-color: transparent;
-            }
-        ''')
+        frame.setStyleSheet(bubble_frame_qss(radius=CARD_RADIUS))
         # Layout
         self.hBoxLayout = QHBoxLayout()
         self.hBoxLayout.setContentsMargins(10, 10, 10, 10)

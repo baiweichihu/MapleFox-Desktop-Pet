@@ -18,7 +18,14 @@ from PySide6.QtCore import Qt, QTimer, QObject, QPoint, QEvent, QRect, QSize, QD
 from PySide6.QtGui import QImage, QPixmap, QIcon, QCursor, QPainter, QFont, QFontDatabase, QColor, QPainterPath, QRegion, QIntValidator, QDoubleValidator
 
 from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets import TransparentToolButton, ToolTipFilter
+from qfluentwidgets import TransparentToolButton, ToolTipFilter, isDarkTheme
+from DyberPet.style import palette
+from DyberPet.style.theme import active_palette
+
+try:
+    import qtawesome as qta
+except ImportError:
+    qta = None
 
 '''
 try:
@@ -691,42 +698,47 @@ QLabel {{
 
 CloseButtonStyle = """
 QPushButton {
-    background-color: rgba(0, 0, 0, 25);
+    background-color: transparent;
     border: none;
     border-radius: 10px;
 }
 QPushButton:hover:!pressed {
-    background-color: #d93025;
+    background-color: rgba(0, 0, 0, 25);
 }
 QPushButton:pressed {
-    background-color: #c5221f;
+    background-color: rgba(0, 0, 0, 40);
 }
 """
 
-_MemoQSS = """
-#memoFrame {
-    background: rgba(255, 255, 255, 235);
+
+def _memo_qss(dark=None):
+    """备忘录简约卡片样式（暖橙主色 + 深浅双主题）"""
+    p = active_palette(dark)
+    accent = p['primary']
+    return f"""
+#memoFrame {{
+    background: {p['card']};
     border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 25);
-}
-#memoFrame QLabel#memoTitle {
+    border: 1px solid {p['border']};
+}}
+#memoFrame QLabel#memoTitle {{
     font-size: 15px;
     font-weight: 600;
-    color: #333333;
-}
-#memoFrame QTextEdit {
-    border: 1px solid rgba(0, 0, 0, 25);
+    color: {p['text']};
+}}
+#memoFrame QTextEdit {{
+    border: 1px solid {p['border']};
     border-radius: 8px;
-    background: white;
+    background: {p['card']};
     padding: 8px;
     font-size: 13px;
     font-family: "Microsoft YaHei", "PingFang SC", "Segoe UI";
-    color: #333333;
-    selection-background-color: #009faa;
-}
-#memoFrame QTextEdit:focus {
-    border: 1px solid #009faa;
-}
+    color: {p['text']};
+    selection-background-color: {accent};
+}}
+#memoFrame QTextEdit:focus {{
+    border: 1px solid {accent};
+}}
 """
 
 class MemoWindow(QWidget):
@@ -740,7 +752,7 @@ class MemoWindow(QWidget):
 
         self.centralwidget = QFrame()
         self.centralwidget.setObjectName('memoFrame')
-        self.centralwidget.setStyleSheet(_MemoQSS)
+        self.centralwidget.setStyleSheet(_memo_qss())
 
         vbox = QVBoxLayout(self.centralwidget)
         vbox.setContentsMargins(12, 10, 12, 12)
@@ -750,17 +762,25 @@ class MemoWindow(QWidget):
         hbox_title = QHBoxLayout()
         hbox_title.setSpacing(6)
         icon = QLabel()
-        image = QImage()
-        image.load(os.path.join(basedir, 'res/icons/Dialogue_icon.png'))
-        icon.setPixmap(QPixmap.fromImage(image))
         icon.setFixedSize(22, 22)
         icon.setScaledContents(True)
+        if qta is not None:
+            c = '#FFFFFF' if isDarkTheme() else '#000000'
+            icon.setPixmap(qta.icon('fa5s.sticky-note', color=c).pixmap(22, 22))
+        else:
+            image = QImage()
+            image.load(os.path.join(basedir, 'res/icons/Dialogue_icon.png'))
+            icon.setPixmap(QPixmap.fromImage(image))
         self.title_label = QLabel(self.tr('Memo'))
         self.title_label.setObjectName('memoTitle')
         self.close_button = QPushButton()
         self.close_button.setStyleSheet(CloseButtonStyle)
         self.close_button.setFixedSize(20, 20)
-        self.close_button.setIcon(QIcon(os.path.join(basedir, 'res/icons/close_icon.png')))
+        if qta is not None:
+            c = '#FFFFFF' if isDarkTheme() else '#000000'
+            self.close_button.setIcon(qta.icon('fa5s.times', color=c))
+        else:
+            self.close_button.setIcon(QIcon(os.path.join(basedir, 'res/icons/close_icon.png')))
         self.close_button.setIconSize(QSize(12, 12))
         self.close_button.setCursor(Qt.PointingHandCursor)
         self.close_button.clicked.connect(self.close_memo)
@@ -778,9 +798,14 @@ class MemoWindow(QWidget):
         vbox.addWidget(self.text_edit, 1)
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setContentsMargins(16, 16, 16, 16)
         outer.addWidget(self.centralwidget)
         self.setFixedSize(380, 460)
+        shadow = QGraphicsDropShadowEffect(self.centralwidget)
+        shadow.setBlurRadius(30)
+        shadow.setOffset(0, 8)
+        shadow.setColor(QColor(0, 0, 0, 45))
+        self.centralwidget.setGraphicsEffect(shadow)
 
         self._load()
 
@@ -823,83 +848,87 @@ class MemoWindow(QWidget):
         self.setCursor(QCursor(Qt.ArrowCursor))
 
 
-_ReminderQSS = """
-#reminderFrame {
-    background: rgba(255, 255, 255, 235);
+def _reminder_qss(dark=None):
+    """提醒窗口简约卡片样式（暖橙主色 + 深浅双主题）"""
+    p = active_palette(dark)
+    accent = p['primary']
+    return f"""
+#reminderFrame {{
+    background: {p['card']};
     border-radius: 12px;
-    border: 1px solid rgba(0, 0, 0, 25);
-}
-#reminderFrame QLabel#reminderTitle {
+    border: 1px solid {p['border']};
+}}
+#reminderFrame QLabel#reminderTitle {{
     font-size: 15px;
     font-weight: 600;
-    color: #333333;
-}
-#reminderFrame QPushButton#confirmButton {
-    border: 1px solid #009faa;
+    color: {p['text']};
+}}
+#reminderFrame QPushButton#confirmButton {{
+    border: 1px solid {accent};
     border-radius: 6px;
     background: transparent;
-    color: #009faa;
+    color: {accent};
     font-size: 13px;
     padding: 4px 14px;
-}
-#reminderFrame QPushButton#confirmButton:hover {
-    background: rgba(0, 159, 170, 15);
-}
-#reminderFrame QPushButton#confirmButton:disabled {
-    border: 1px solid rgba(0, 0, 0, 20);
-    color: #999999;
+}}
+#reminderFrame QPushButton#confirmButton:hover {{
+    background: rgba(232, 135, 74, 15);
+}}
+#reminderFrame QPushButton#confirmButton:disabled {{
+    border: 1px solid {p['border']};
+    color: {p['textDisabled']};
     background: transparent;
-}
-QScrollArea#reminderScroll, QScrollArea#reminderScroll > QWidget > QWidget {
+}}
+QScrollArea#reminderScroll, QScrollArea#reminderScroll > QWidget > QWidget {{
     border: none;
     background: transparent;
-}
-#reminderList {
+}}
+#reminderList {{
     background: transparent;
-}
-ReminderItem {
-    background: white;
+}}
+ReminderItem {{
+    background: {p['card']};
     border-radius: 8px;
-    border: 1px solid rgba(0, 0, 0, 18);
-}
-ReminderItem QLineEdit {
+    border: 1px solid {p['border']};
+}}
+ReminderItem QLineEdit {{
     border: none;
-    border-bottom: 1px solid rgba(0, 0, 0, 30);
+    border-bottom: 1px solid {p['border']};
     background: transparent;
     padding: 4px 2px;
     font-size: 13px;
-    color: #333333;
-}
-ReminderItem QLineEdit:focus {
-    border-bottom: 2px solid #009faa;
-}
-ReminderItem QDateTimeEdit {
-    border: 1px solid rgba(0, 0, 0, 25);
+    color: {p['text']};
+}}
+ReminderItem QLineEdit:focus {{
+    border-bottom: 2px solid {accent};
+}}
+ReminderItem QDateTimeEdit {{
+    border: 1px solid {p['border']};
     border-radius: 6px;
-    background: white;
+    background: {p['card']};
     padding: 2px 6px;
     font-size: 12px;
-    color: #333333;
-}
-ReminderItem QPushButton#deleteButton {
+    color: {p['text']};
+}}
+ReminderItem QPushButton#deleteButton {{
     border: none;
     border-radius: 6px;
     background: transparent;
     color: #d93025;
     font-size: 12px;
     padding: 4px 8px;
-}
-ReminderItem QPushButton#deleteButton:hover {
+}}
+ReminderItem QPushButton#deleteButton:hover {{
     background: rgba(217, 48, 37, 15);
-}
-ReminderItem[completed="true"] QLineEdit {
-    color: #a0a0a0;
-    border-bottom: 1px solid rgba(0, 0, 0, 12);
-}
-ReminderItem[completed="true"] QDateTimeEdit {
-    color: #a0a0a0;
-    background: rgba(0, 0, 0, 3);
-}
+}}
+ReminderItem[completed="true"] QLineEdit {{
+    color: {p['textDisabled']};
+    border-bottom: 1px solid {p['border']};
+}}
+ReminderItem[completed="true"] QDateTimeEdit {{
+    color: {p['textDisabled']};
+    background: {p['hover']};
+}}
 """
 
 class ReminderItem(QWidget):
@@ -972,7 +1001,7 @@ class ReminderWindow(QWidget):
 
         self.centralwidget = QFrame()
         self.centralwidget.setObjectName('reminderFrame')
-        self.centralwidget.setStyleSheet(_ReminderQSS)
+        self.centralwidget.setStyleSheet(_reminder_qss())
 
         vbox = QVBoxLayout(self.centralwidget)
         vbox.setContentsMargins(12, 10, 12, 12)
@@ -982,17 +1011,25 @@ class ReminderWindow(QWidget):
         hbox_title = QHBoxLayout()
         hbox_title.setSpacing(6)
         icon = QLabel()
-        image = QImage()
-        image.load(os.path.join(basedir, 'res/icons/remind_icon.png'))
-        icon.setPixmap(QPixmap.fromImage(image))
         icon.setFixedSize(22, 22)
         icon.setScaledContents(True)
+        if qta is not None:
+            c = '#FFFFFF' if isDarkTheme() else '#000000'
+            icon.setPixmap(qta.icon('fa5s.bell', color=c).pixmap(22, 22))
+        else:
+            image = QImage()
+            image.load(os.path.join(basedir, 'res/icons/remind_icon.png'))
+            icon.setPixmap(QPixmap.fromImage(image))
         self.title_label = QLabel(self.tr('Reminders'))
         self.title_label.setObjectName('reminderTitle')
         self.close_button = QPushButton()
         self.close_button.setStyleSheet(CloseButtonStyle)
         self.close_button.setFixedSize(20, 20)
-        self.close_button.setIcon(QIcon(os.path.join(basedir, 'res/icons/close_icon.png')))
+        if qta is not None:
+            c = '#FFFFFF' if isDarkTheme() else '#000000'
+            self.close_button.setIcon(qta.icon('fa5s.times', color=c))
+        else:
+            self.close_button.setIcon(QIcon(os.path.join(basedir, 'res/icons/close_icon.png')))
         self.close_button.setIconSize(QSize(12, 12))
         self.close_button.setCursor(Qt.PointingHandCursor)
         self.close_button.clicked.connect(self.close_reminder)
@@ -1047,9 +1084,14 @@ class ReminderWindow(QWidget):
         vbox.addWidget(self.scroll_area, 1)
 
         outer = QVBoxLayout(self)
-        outer.setContentsMargins(0, 0, 0, 0)
+        outer.setContentsMargins(16, 16, 16, 16)
         outer.addWidget(self.centralwidget)
         self.setFixedSize(520, 480)
+        shadow = QGraphicsDropShadowEffect(self.centralwidget)
+        shadow.setBlurRadius(30)
+        shadow.setOffset(0, 8)
+        shadow.setColor(QColor(0, 0, 0, 45))
+        self.centralwidget.setGraphicsEffect(shadow)
 
         self.setAutoFillBackground(False)
         self.setAttribute(Qt.WA_TranslucentBackground, True)

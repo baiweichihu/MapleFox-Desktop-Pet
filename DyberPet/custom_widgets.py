@@ -2,7 +2,7 @@
 import os
 from PySide6.QtWidgets import (QWidget, QApplication, QSystemTrayIcon, QMenu, QHBoxLayout,
                                QFrame, QLabel, QSpacerItem, QSizePolicy, QVBoxLayout, 
-                               QLayout, QProgressBar)
+                               QLayout, QProgressBar, QGraphicsDropShadowEffect)
 from PySide6.QtGui import (QIcon, QAction, QCursor, QImage, QPixmap, QColor,
                            QPainter, QBrush, QPen, QPainterPath, QFont, QFontMetrics)
 from PySide6.QtCore import Qt, QPoint, Signal, QSize, QRectF
@@ -12,6 +12,7 @@ from qfluentwidgets import (StrongBodyLabel, TransparentToolButton, BodyLabel, P
                             isDarkTheme, Slider, CaptionLabel, setFont, ToolTipFilter)
 from qfluentwidgets import FluentIcon as FIF
 from DyberPet.utils import text_wrap
+from DyberPet.style.theme import bubble_frame_qss, soft_button_qss
 import DyberPet.settings as settings
 
 basedir = settings.BASEDIR
@@ -36,8 +37,12 @@ class SystemTray(QSystemTrayIcon):
             cursor_pos = QCursor.pos() #QApplication.primaryScreen().cursor().pos() #QApplication.desktop().cursor().pos()
 
             # Adjust the position. Here, we're moving it 100 pixels upward.
-            new_pos = cursor_pos - QPoint(0, self.contextMenu().height()-20)
-            self.contextMenu().popup(new_pos)
+            new_pos = cursor_pos - QPoint(0, 20)
+            if isinstance(self._menu, QMenu):
+                new_pos = cursor_pos - QPoint(0, self.contextMenu().height() - 20)
+                self.contextMenu().popup(new_pos)
+            elif self._menu is not None:
+                self._menu.popup(new_pos)
 
     def setMenu(self, menu):
         """ Set a new context menu for the tray """
@@ -45,8 +50,11 @@ class SystemTray(QSystemTrayIcon):
         if old_menu:
             old_menu.hide()
             old_menu.deleteLater()
-            
-        super().setContextMenu(menu)
+
+        self._menu = menu
+        if isinstance(menu, QMenu):
+            super().setContextMenu(menu)
+        # 非 QMenu（自绘菜单）：不设置原生 contextMenu，右键时由 activated 信号手动弹出
 
 
 
@@ -99,16 +107,12 @@ class DPDialogue(QWidget):
 
         # The Round Dialogue Frame
         self.frame = QFrame()
-        self.frame.setStyleSheet(f'''
-            QFrame {{
-                border: 1px solid black;
-                border-radius: 4px; 
-                background: rgb(255, 255, 255);
-            }}
-            QLabel{{
-                border: 0px
-            }}
-        ''')
+        self.frame.setStyleSheet(bubble_frame_qss(radius=12))
+        shadow = QGraphicsDropShadowEffect(self.frame)
+        shadow.setBlurRadius(24)
+        shadow.setOffset(0, 4)
+        shadow.setColor(QColor(0, 0, 0, 40))
+        self.frame.setGraphicsEffect(shadow)
 
         self.verticalLayout = QVBoxLayout(self)
         self.verticalLayout.setSizeConstraint(QLayout.SetDefaultConstraint)
@@ -313,6 +317,7 @@ class DialogueButtom(PushButton):
         self.msg = msg
         self.msg_key = msg_key
         self.setText(text_wrap(msg,15))
+        self.setStyleSheet(soft_button_qss())
         self.setFixedWidth(250)
         self.setSizePolicy(QSizePolicy.Fixed, QSizePolicy.Minimum)
         self.adjustSize()

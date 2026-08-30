@@ -763,7 +763,6 @@ class PetWidget(QWidget):
         self.daysLabel = CaptionLabel(daysText, self)
         setFont(self.daysLabel, 14, QFont.Normal)
 
-        hboxTitle.addStretch(1)
         hboxTitle.addWidget(self.nameLabel, Qt.AlignLeft | Qt.AlignVCenter)
         hboxTitle.addStretch(1)
         hboxTitle.addWidget(self.daysLabel, Qt.AlignRight | Qt.AlignVCenter)
