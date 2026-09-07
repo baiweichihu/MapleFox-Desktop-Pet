@@ -9,13 +9,11 @@ SOURCES += DyberPet/DyberSettings/DyberControlPanel.py \
         DyberPet/extra_windows.py \
         DyberPet/Notification.py \
         DyberPet/Dashboard/DashboardUI.py \
-        DyberPet/Dashboard/animationUI.py \
         DyberPet/Dashboard/buffModule.py \
         DyberPet/Dashboard/dashboard_widgets.py \
         DyberPet/Dashboard/inventoryUI.py \
         DyberPet/Dashboard/shopUI.py \
         DyberPet/Dashboard/statusUI.py \
-        DyberPet/Dashboard/animDesignUI.py \
 
 
 

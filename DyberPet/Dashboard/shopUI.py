@@ -5,15 +5,14 @@ import random
 import math
 from collections import defaultdict
 
-from qfluentwidgets import (InfoBar, ScrollArea, ExpandLayout, PushButton,
-                            TransparentToolButton, SegmentedToggleToolWidget,
-                            MessageBox, ComboBox, SearchLineEdit, InfoBar, InfoBarPosition)
+from qfluentwidgets import ExpandLayout
 
-from qfluentwidgets import FluentIcon as FIF
 from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QLocale, QSize
 from PySide6.QtGui import QDesktopServices, QIcon, QImage
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QHBoxLayout, QSpacerItem, QSizePolicy
 
+from DyberPet.style.panel import SScrollArea, SButton, SIconButton, SSearchLineEdit, SToast
+from DyberPet.style.theme import dashboard_qss
 from .dashboard_widgets import BPStackedWidget, coinWidget, ShopView, ShopItemWidget, filterView, ShopMessageBox
 from DyberPet.utils import get_MODs
 import DyberPet.settings as settings
@@ -24,7 +23,7 @@ module_path = os.path.join(basedir, 'DyberPet/Dashboard/')
 
 
 
-class shopInterface(ScrollArea):
+class shopInterface(SScrollArea):
     """ Shop interface """
     buyItem = Signal(str, int, name='buyItem')
     sellItem = Signal(str, int, name='sellItem')
@@ -47,14 +46,12 @@ class shopInterface(ScrollArea):
 
         # Header
         self.headerWidget = QWidget(self)
-        self.headerWidget.setFixedWidth(sizeHintdb[0]-165)
+        self.headerWidget.setFixedWidth(450)
         self.panelLabel = QLabel(self.tr("Shop"), self.headerWidget)
         self.panelLabel.setSizePolicy(QSizePolicy.Maximum, self.panelLabel.sizePolicy().verticalPolicy())
         self.panelLabel.adjustSize()
         #self.panelLabel.setFixedWidth(100)
-        self.panelHelp = TransparentToolButton(QIcon(os.path.join(basedir, 'res/icons/question.svg')), self.headerWidget)
-        self.panelHelp.setFixedSize(25,25)
-        self.panelHelp.setIconSize(QSize(25,25))
+        self.panelHelp = SIconButton(QIcon(os.path.join(basedir, 'res/icons/question.svg')), self.headerWidget)
         self.coinWidget = coinWidget(self.headerWidget)
         self.headerLayout = QHBoxLayout(self.headerWidget)
         self.headerLayout.setContentsMargins(0, 0, 0, 0)
@@ -72,13 +69,13 @@ class shopInterface(ScrollArea):
 
         # Filtering and Search Line
         self.header2Widget = QWidget(self)
-        self.header2Widget.setFixedWidth(sizeHintdb[0]-165)
-        self.filterButton = PushButton(text = self.tr("Filter"),
-                                       parent = self.header2Widget,
-                                       icon = QIcon(os.path.join(basedir, 'res/icons/Dashboard/expand.svg')))
+        self.header2Widget.setFixedWidth(450)
+        self.filterButton = SButton(text = self.tr("Filter"),
+                                    parent = self.header2Widget,
+                                    icon = QIcon(os.path.join(basedir, 'res/icons/Dashboard/expand.svg')))
         self.filterButton.setFixedWidth(100)
         self._init_filter()
-        self.searchLineEdit = SearchLineEdit(self)
+        self.searchLineEdit = SSearchLineEdit(self)
         self._init_searchLine()
         
         self.header2Layout = QHBoxLayout(self.header2Widget)
@@ -113,7 +110,6 @@ class shopInterface(ScrollArea):
     def _init_searchLine(self):
         content = self.tr('Search by name, MOD...')
         self.searchLineEdit.setPlaceholderText(content)
-        self.searchLineEdit.setClearButtonEnabled(True)
         self.searchLineEdit.setFixedWidth(250)
         #self.searchLineEdit.textChanged.connect(self.searchLineEdit.search)
         self.searchLineEdit.clearSignal.connect(self._updateList_All)
@@ -123,7 +119,7 @@ class shopInterface(ScrollArea):
     def __initWidget(self):
         #self.resize(1000, 800)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setViewportMargins(0, 130, 0, 20)
+        self.setViewportMargins(0, 112, 0, 16)
         self.setWidget(self.scrollWidget)
         #self.scrollWidget.resize(1000, 800)
         self.setWidgetResizable(True)
@@ -136,13 +132,13 @@ class shopInterface(ScrollArea):
         self.__connectSignalToSlot()
 
     def __initLayout(self):
-        self.headerWidget.move(60, 20)
-        self.header2Widget.move(60, 80)
-        self.filterView.move(60, 125)
+        self.headerWidget.move(36, 12)
+        self.header2Widget.move(36, 60)
+        self.filterView.move(36, 104)
 
         # add setting card group to layout
-        self.expandLayout.setSpacing(28)
-        self.expandLayout.setContentsMargins(60, 10, 60, 0)
+        self.expandLayout.setSpacing(16)
+        self.expandLayout.setContentsMargins(36, 6, 36, 0)
 
         self.expandLayout.addWidget(self.ShopView)
 
@@ -152,9 +148,7 @@ class shopInterface(ScrollArea):
         self.scrollWidget.setObjectName('scrollWidget')
         self.panelLabel.setObjectName('panelLabel')
 
-        theme = 'light' #if isDarkTheme() else 'light'
-        with open(os.path.join(basedir, 'res/icons/Dashboard/qss/', theme, 'status_interface.qss'), encoding='utf-8') as f:
-            self.setStyleSheet(f.read())
+        self.setStyleSheet(dashboard_qss())
 
     def __connectSignalToSlot(self):
         """ connect signal to slot """
@@ -170,11 +164,11 @@ class shopInterface(ScrollArea):
         self.filterView.setVisible(visible)
 
         if visible:
-            self.filterButton.setIcon(os.path.join(basedir, 'res/icons/Dashboard/collapse.svg'))
-            self.setViewportMargins(0, 130+self.filterView.height()+10, 0, 20)
+            self.filterButton.setIcon(QIcon(os.path.join(basedir, 'res/icons/Dashboard/collapse.svg')))
+            self.setViewportMargins(0, 112+self.filterView.height()+8, 0, 16)
         else:
-            self.filterButton.setIcon(os.path.join(basedir, 'res/icons/Dashboard/expand.svg'))
-            self.setViewportMargins(0, 130, 0, 20)
+            self.filterButton.setIcon(QIcon(os.path.join(basedir, 'res/icons/Dashboard/expand.svg')))
+            self.setViewportMargins(0, 112, 0, 16)
 
 
     def _updateList_filter(self):
@@ -213,29 +207,14 @@ Please position your cursor over the item image to see details.""")
         return     
 
     def __showMessageBox(self, title, content, yesText='OK'):
-
-        WarrningMessage = MessageBox(title, content, self)
-        if yesText == 'OK':
-            WarrningMessage.yesButton.setText(self.tr('OK'))
-        else:
-            WarrningMessage.yesButton.setText(yesText)
-        WarrningMessage.cancelButton.setText(self.tr('Cancel'))
-        if WarrningMessage.exec():
-            return True
-        else:
-            #print('Cancel button is pressed')
-            return False
+        from DyberPet.style.panel import SDialog
+        dlg = SDialog(title, content, self, yes_text=self.tr(yesText))
+        return bool(dlg.exec())
 
     def __showSystemNote(self, content, type_code):
-        """ show restart tooltip """
-        notMethods = [InfoBar.success, InfoBar.warning, InfoBar.error]
-        notMethods[type_code](
-            '',
-            content,
-            duration=3000,
-            position=InfoBarPosition.BOTTOM,
-            parent=self.window()
-        )
+        """ show lightweight toast """
+        notMethods = [SToast.success, SToast.warning, SToast.error]
+        notMethods[type_code](content, parent=self.window())
 
     def _updateItemNum(self, item_name):
         self.ShopView._updateItemNum(item_name)

@@ -23,25 +23,15 @@ from PySide6.QtCore import QSize, QPoint, Qt, QRect, QPropertyAnimation, QParall
 from PySide6.QtWidgets import QLayout, QWidgetItem, QLayoutItem
 
 
-from qfluentwidgets import FluentIcon as FIF
-from qfluentwidgets import SettingCard, Slider, FluentIconBase, SimpleCardWidget, PushButton
-from qfluentwidgets import (SegmentedToolWidget, TransparentToolButton, PillPushButton,
-                            InfoBar, InfoBarPosition, InfoBarIcon, 
-                            RoundMenu, FluentIcon, Action, AvatarWidget, BodyLabel, ToolButton,
-                            HyperlinkButton, CaptionLabel, setFont, setTheme, Theme, isDarkTheme,
-                            FluentStyleSheet, FlowLayout, IconWidget, getFont,
-                            TransparentDropDownToolButton, DropDownPushButton,
-                            ScrollArea, PrimaryPushButton, LineEdit,
-                            FlipImageDelegate, HorizontalPipsPager, HorizontalFlipView,
-                            TextWrap, InfoBadge, PushButton, ScrollArea, ImageLabel, ToolTipFilter,
-                            MessageBoxBase, SpinBox, SubtitleLabel, CardWidget, TimePicker,
-                            StrongBodyLabel, CheckBox, InfoBarIcon, LargeTitleLabel, ProgressRing, 
-                            Flyout, FlyoutViewBase, FlyoutAnimationType, TitleLabel, ComboBox, ProgressBar)
+from qfluentwidgets import (CaptionLabel, setFont, isDarkTheme, FlowLayout, ToolTipFilter)
 
 import DyberPet.settings as settings
 from DyberPet.DyberSettings.custom_utils import AvatarImage
 from DyberPet.custom_widgets import RoundBarBase, LevelBadge
 from DyberPet.utils import MaskPhrase, TimeConverter, replace_duplicates_in_list
+from DyberPet.style.theme import active_palette, UI_FONT
+from DyberPet.style.panel import (SDialog, SCardWidget, SButton, SPillButton, SSpinBox,
+                                  SScrollArea)
 
 from sys import platform
 basedir = settings.BASEDIR
@@ -143,7 +133,6 @@ class NoteFlowGroup(QWidget):
         self.vBoxLayout.addLayout(self.noteLayout, 1)
         self.vBoxLayout.addStretch(1)
 
-        FluentStyleSheet.SETTING_CARD_GROUP.apply(self)
         setFont(self.titleLabel, 20)
         self.titleLabel.adjustSize()
         self.resize(self.width(), 60)
@@ -206,7 +195,7 @@ class NotificationWidget(QWidget):
 
 STATUS_W, STATUS_H = 450, 150
 
-class StatusCard(SimpleCardWidget):
+class StatusCard(SCardWidget):
     """ Status card """
 
     def __init__(self, parent=None):
@@ -223,18 +212,6 @@ class StatusCard(SimpleCardWidget):
         self.setFixedSize(STATUS_W, STATUS_H)
 
         self.__init_Card()
-
-
-    def _normalBackgroundColor(self):
-        
-        return QColor(255, 255, 255, 13 if isDarkTheme() else 170)
-
-    def _updateBackgroundColor(self):
-
-        color = self._normalBackgroundColor()
-        self.backgroundColorAni.stop()
-        self.backgroundColorAni.setEndValue(color)
-        self.backgroundColorAni.start()
 
     def _clear_layout(self, layout):
 
@@ -524,7 +501,7 @@ class FVWidget(QWidget):
 BUFF_W, BUFF_H = 450, 45
 BUFF_SIZE = 25
 
-class BuffCard(SimpleCardWidget):
+class BuffCard(SCardWidget):
     """  Buff status UI """
 
     def __init__(self, parent=None):
@@ -532,7 +509,7 @@ class BuffCard(SimpleCardWidget):
 
         self.buff_dict = {}
 
-        HScroll = ScrollArea(self)
+        HScroll = SScrollArea(self)
         HScroll.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         HScroll.setWidgetResizable(True)
         HScroll.setStyleSheet("""QScrollArea {
@@ -659,13 +636,16 @@ class BuffWidget(QLabel):
     def _setQss(self, item_type):
 
         bgc = settings.ITEM_BGC.get(item_type, settings.ITEM_BGC_DEFAULT)
-        bdc = bgc
+        p = active_palette()
 
         BuffStyle = f"""
         QLabel{{
-            border : 2px solid {bdc};
-            border-radius: 5px;
+            border : 1px solid {p['border']};
+            border-radius: 8px;
             background-color: {bgc}
+        }}
+        QLabel:hover {{
+            border-color: {p['textSecondary']};
         }}
         """
         self.setStyleSheet(BuffStyle)
@@ -757,9 +737,11 @@ class coinWidget(QWidget):
         #self.icon.setToolTip(self.tr('Dyber Coin'))
         self.icon.setToolTip(settings.items_data.coin['name'].get(settings.language_code, settings.items_data.coin['name']['default']))
 
-        self.coinAmount = LineEdit(self)
-        self.coinAmount.setClearButtonEnabled(False)
-        self.coinAmount.setEnabled(False)
+        self.coinAmount = QLabel(self)
+        self.coinAmount.setAlignment(Qt.AlignRight | Qt.AlignVCenter)
+        p = active_palette()
+        self.coinAmount.setStyleSheet(
+            f"QLabel {{ color: {p['text']}; font: 600 14px {UI_FONT}; background: transparent; }}")
 
         self.hBoxLayout.addStretch(1)
         self.hBoxLayout.addWidget(self.icon, Qt.AlignRight | Qt.AlignVCenter)
@@ -915,13 +897,17 @@ class PetItemWidget(QLabel):
         if item_type == 'consumable' and self.cell_index == 0:
             item_type = 'autofeed'
         bgc = settings.ITEM_BGC.get(item_type, settings.ITEM_BGC_DEFAULT)
-        bdc = settings.ITEM_BDC if self.selected else bgc
+        p = active_palette()
+        bdc = p['primary'] if self.selected else p['border']
 
         ItemStyle = f"""
         QLabel{{
-            border : 2px solid {bdc};
-            border-radius: 5px;
+            border : 1px solid {bdc};
+            border-radius: 8px;
             background-color: {bgc}
+        }}
+        QLabel:hover {{
+            border-color: {p['textSecondary']};
         }}
         """
         self.setStyleSheet(ItemStyle)
@@ -1487,7 +1473,7 @@ class itemTabWidget(QWidget):
 SHOPITEM_W, SHOPITEM_H = 210, 120
 SHOPITEM_WH = 50
 
-class ShopItemWidget(SimpleCardWidget):
+class ShopItemWidget(SCardWidget):
 
     buyClicked = Signal(str, name="buyClicked")
     sellClicked = Signal(str, name="sellClicked")
@@ -1561,18 +1547,6 @@ class ShopItemWidget(SimpleCardWidget):
             lockChanged = True
 
         return lockChanged
-
-
-    def _normalBackgroundColor(self):
-        
-        return QColor(255, 255, 255, 13 if isDarkTheme() else 170)
-
-    def _updateBackgroundColor(self):
-
-        color = self._normalBackgroundColor()
-        self.backgroundColorAni.stop()
-        self.backgroundColorAni.setEndValue(color)
-        self.backgroundColorAni.start()
 
     def _clear_layout(self, layout):
 
@@ -1651,15 +1625,15 @@ class ShopItemWidget(SimpleCardWidget):
 
 
         # Buy Button
-        self.buyButton = PushButton(text = f"{self.cost}",
-                                    icon = settings.items_data.coin['image']) #QIcon(os.path.join(basedir, 'res/icons/Dashboard/coin.svg')))
+        self.buyButton = SButton(text = f"{self.cost}",
+                                 icon = settings.items_data.coin['image']) #QIcon(os.path.join(basedir, 'res/icons/Dashboard/coin.svg')))
         self.buyButton.setFixedWidth(85)
         self.buyButton.clicked.connect(self._buyClicked)
 
 
         # Sell Button
-        self.sellButton = PushButton(text = self.tr("Sell"),
-                                     icon = QIcon(os.path.join(basedir, 'res/icons/Dashboard/sell.svg')))
+        self.sellButton = SButton(text = self.tr("Sell"),
+                                  icon = QIcon(os.path.join(basedir, 'res/icons/Dashboard/sell.svg')))
         self.sellButton.setFixedWidth(85)
         self.sellButton.clicked.connect(self._sellClicked)
 
@@ -1683,13 +1657,16 @@ class ShopItemWidget(SimpleCardWidget):
     def _setQss(self, item_type):
 
         bgc = settings.ITEM_BGC.get(item_type, settings.ITEM_BGC_DEFAULT)
-        bdc = bgc
+        p = active_palette()
 
         ItemStyle = f"""
         QLabel{{
-            border : 2px solid {bdc};
-            border-radius: 5px;
+            border : 1px solid {p['border']};
+            border-radius: 8px;
             background-color: {bgc}
+        }}
+        QLabel:hover {{
+            border-color: {p['textSecondary']};
         }}
         """
         self.imgLabel.setStyleSheet(ItemStyle)
@@ -1748,7 +1725,7 @@ class ShopItemWidget(SimpleCardWidget):
         disableBtn = not self.unlocked
         self.buyButton.setDisabled(disableBtn)
         self.sellButton.setDisabled(disableBtn)
-        self.buyButton.setIcon(settings.items_data.coin['image'])
+        self.buyButton.setIcon(QIcon(settings.items_data.coin['image']))
 
     def _buyClicked(self):
         self.buyClicked.emit(self.item_name)
@@ -1901,7 +1878,7 @@ class ShopView(QWidget):
 
 
 FILTER_W = 450
-class filterView(SimpleCardWidget):
+class filterView(SCardWidget):
     """ Filter Options Widget """
     filterChanged = Signal(name='filterChanged')
 
@@ -1917,18 +1894,6 @@ class filterView(SimpleCardWidget):
         self.vBoxLayout.setSpacing(5)
 
         self.setFixedWidth(FILTER_W)
-
-
-    def _normalBackgroundColor(self):
-        
-        return QColor(255, 255, 255, 13 if isDarkTheme() else 170)
-
-    def _updateBackgroundColor(self):
-
-        color = self._normalBackgroundColor()
-        self.backgroundColorAni.stop()
-        self.backgroundColorAni.setEndValue(color)
-        self.backgroundColorAni.start()
 
     def _clear_layout(self, layout):
 
@@ -2006,7 +1971,7 @@ class filterWidget(QWidget):
 
     def _init_opts(self):
         for opt in self.options:
-            btn = PillPushButton(opt)
+            btn = SPillButton(opt)
             self.cardLayout.addWidget(btn)
             self.opt_btn.append(btn)
             btn.adjustSize()
@@ -2039,35 +2004,30 @@ class filterWidget(QWidget):
 
 
 
-class ShopMessageBox(MessageBoxBase):
-    """ Custom message box """
+class ShopMessageBox(SDialog):
+    """简约购买/出售数量对话框"""
     bill = Signal(int, name='bill')
 
     def __init__(self, option, item_name, maxNum, cost, parent=None):
-        super().__init__(parent)
+        title = (self.tr('Buy') if option == 'buy' else self.tr('Sell')) + f' [{item_name}]'
+        super().__init__(title, '', parent)
         self.setObjectName("ShopMessageBox")
         self.setAttribute(Qt.WA_DeleteOnClose)
         self.cost = cost
         self.option = option
         self.itemNum = 0
-        if self.option == 'buy':
-            self.titleLabel = SubtitleLabel(self.tr('Buy') + f' [{item_name}]', self)
-        elif self.option == 'sell':
-            self.titleLabel = SubtitleLabel(self.tr('Sell') + f' [{item_name}]', self)
-        self.numSpinBox = SpinBox(self)
+
+        self.numSpinBox = SSpinBox(self)
         self.numSpinBox.setMinimum(0)
         self.numSpinBox.setMaximum(maxNum)
+        self._contentLayout.addWidget(self.numSpinBox)
 
-        # add widget to view layout
-        self.viewLayout.addWidget(self.titleLabel)
-        self.viewLayout.addWidget(self.numSpinBox)
-
-        # change the text of button
-        self.yesButton.setIcon(settings.items_data.coin['image']) #os.path.join(basedir, 'res/icons/Dashboard/coin.svg'))
+        # 按钮：主按钮显示币图标 + 金额，取消按钮保持
+        self.yesButton.setIcon(QIcon(settings.items_data.coin['image']))
         self.yesButton.setText('0')
         self.cancelButton.setText(self.tr('Cancel'))
+        self.setFixedWidth(360)
 
-        self.widget.setMinimumWidth(350)
         self.numSpinBox.textChanged.connect(self._updateCost)
 
     def _updateCost(self, num):
@@ -2077,10 +2037,6 @@ class ShopMessageBox(MessageBoxBase):
             self.yesButton.setText(f'-{self.cost * self.itemNum}')
         elif self.option == 'sell':
             self.yesButton.setText(f'+{self.cost * self.itemNum}')
-
-    def __onYesButtonClicked(self):
-        self.accept()
-        self.accepted.emit()
 
 
 
@@ -2102,305 +2058,5 @@ def Silhouette(pixmap):
     painter.end()
 
     return silhouette
-
-
-
-
-
-
-
-###########################################################################
-#                          Animation UI Widgets                            
-###########################################################################
-
-class AnimationGroup(QWidget):
-    """ Animation card group """
-
-    updateList = Signal(name="updateList")
-    playAct = Signal(str, name='playAct')
-    addNew = Signal(name="addNew")
-    deleteAct = Signal(str, name='deleteAct')
-
-    def __init__(self, sizeHintDyber, parent=None):
-        super().__init__(parent=parent)
-        self.sizeHintDyber = sizeHintDyber
-        self.setObjectName("AnimationGroup")
-        self.actCards = {}
-        self.current_pet = settings.petname
-
-        self.__init_ui()
-        self.add_actions()
-        #self.__connectSignalToSlot()
-
-
-    def __init_ui(self):
-        '''
-        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.sizePolicy().hasHeightForWidth())
-        self.setSizePolicy(sizePolicy)
-        '''
-        self.setFixedSize(QSize(self.sizeHintDyber[0]-150, 800))
-
-        self.verticalLayout = QVBoxLayout(self)
-        self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.verticalLayout.setSizeConstraint(QLayout.SetDefaultConstraint)
-        self.verticalLayout.setSpacing(10)
-
-        # Section Label 1
-        self.horizontalLayout_0 = QHBoxLayout()
-        self.horizontalLayout_0.setContentsMargins(0, 0, 0, 0)
-        self.SectionLabel1 = CaptionLabel(self)
-        self.SectionLabel1.setText(self.tr("Action List"))
-        setFont(self.SectionLabel1, 24, QFont.Normal)
-        self.horizontalLayout_0.addWidget(self.SectionLabel1)
-        spacerItem0 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.horizontalLayout_0.addItem(spacerItem0)
-        self.verticalLayout.addLayout(self.horizontalLayout_0)
-
-        # Playlist label
-        self.horizontalLayout_1 = QHBoxLayout()
-        self.horizontalLayout_1.setContentsMargins(0, 0, 0, 0)
-        self.col_label_1 = StrongBodyLabel()
-        self.col_label_1.setText(self.tr("Playlist"))
-        setFont(self.col_label_1, 15, QFont.Normal)
-        self.col_label_1.setTextColor(QColor(140, 140, 140))
-        self.horizontalLayout_1.addWidget(self.col_label_1)
-        spacerItem1 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.horizontalLayout_1.addItem(spacerItem1)
-        self.verticalLayout.addLayout(self.horizontalLayout_1)
-
-        # Action layout 1
-        self.action_layout_1 = QVBoxLayout()
-        self.action_layout_1.setContentsMargins(0, 0, 0, 0)
-        self.action_layout_1.setSpacing(10)
-        self.verticalLayout.addLayout(self.action_layout_1)
-        spacerItem2 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
-        self.verticalLayout.addItem(spacerItem2)
-
-        # Section Label 2
-        self.horizontalLayout_2 = QHBoxLayout()
-        self.horizontalLayout_2.setContentsMargins(0, 0, 0, 0)
-        self.SectionLabel2 = CaptionLabel(self)
-        self.SectionLabel2.setText(self.tr("Customized"))
-        setFont(self.SectionLabel2, 24, QFont.Normal)
-        self.horizontalLayout_2.addWidget(self.SectionLabel2)
-        spacerItem3 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.horizontalLayout_2.addItem(spacerItem3)
-        self.verticalLayout.addLayout(self.horizontalLayout_2)
-
-        # Action layout 2
-        self.action_layout_2 = QVBoxLayout()
-        self.action_layout_2.setContentsMargins(0, 0, 0, 0)
-        self.action_layout_2.setSpacing(10)
-
-        # Add action button
-        self.addButton = PushButton()
-        self.addButton.setText(self.tr("Add New Animation"))
-        self.addButton.setIcon(FIF.ADD)
-        self.addButton.setFixedWidth(self.width())
-        self.addButton.clicked.connect(self.addNew)
-        self.action_layout_2.addWidget(self.addButton)
-
-        self.verticalLayout.addLayout(self.action_layout_2)
-        spacerItem4 = QSpacerItem(20, 50, QSizePolicy.Minimum, QSizePolicy.Expanding)
-        self.verticalLayout.addItem(spacerItem4)
-
-    def add_actions(self):
-        act_configs = settings.act_data.allAct_params[settings.petname]
-        # Some system actions are not callable
-        act_names = [k for k,v in act_configs.items() if -1 not in v['status_type']]
-        act_fv = [v['status_type'][1] for k,v in act_configs.items() if -1 not in v['status_type']]
-        # rank actions by fv lock
-        indexed_fv = list(enumerate(act_fv))
-        sorted_indices = sorted(indexed_fv, key=lambda x: (x[1], x[0]))
-        sorted_act_names = [act_names[idx] for idx, _ in sorted_indices]
-
-        for act_name in sorted_act_names:
-            act_conf = act_configs[act_name]
-            if act_conf['act_type'] == 'random_act' or act_conf['act_type'] == 'accessory_act':
-                self._addCard(act_name, act_conf, 0)
-            elif act_conf['act_type'] == 'customized':
-                self._addCard(act_name, act_conf, 1)
-
-    def _addCard(self, act_name, act_conf, layout_idx):
-        card = ActionCard(act_name, act_conf, self.width(), True if layout_idx else False)
-        self.actCards[act_name] = card
-        if layout_idx == 0:
-            self.action_layout_1.addWidget(card)
-        elif layout_idx == 1:
-            self.action_layout_2.insertWidget(self.action_layout_2.count() - 1, card)
-            self.actCards[act_name].deleteAct.connect(self._deleteAct)
-        
-        self.adjustSize()
-
-        self.actCards[act_name].updateList.connect(self._updateList)
-        self.actCards[act_name].playAct.connect(self._playAct)
-
-    def _deleteCard(self, act_name, layout_idx):
-        card = self.actCards.pop(act_name)
-        if layout_idx == 0:
-            self.action_layout_1.removeWidget(card)
-        elif layout_idx == 1:
-            self.action_layout_2.removeWidget(card)
-        
-        card.deleteLater()
-        self.adjustSize()
-    
-    def adjustSize(self):
-        n = self.action_layout_1.count() + self.action_layout_2.count() - 1
-        h = 200 + n*60
-        return self.setFixedSize(self.width(), h)
-    
-    def _updateList(self, act_name, inlist_bool):
-        settings.act_data.allAct_params[settings.petname][act_name]['in_playlist'] = inlist_bool
-        settings.act_data.save_data()
-        self.updateList.emit()
-
-    def _playAct(self, act_name):
-        self.playAct.emit(act_name)
-
-    def _deleteAct(self, act_name):
-        self.deleteAct.emit(act_name)
-
-    def updateAct(self):
-        if self.current_pet == settings.petname:
-            # Character refreshed
-            for _, card in self.actCards.items():
-                card.update_info()
-        else:
-            # Character changed
-            self.current_pet = settings.petname
-            for _, card in self.actCards.items():
-                card.setParent(None)
-                card.deleteLater()
-            self.actCards = {}
-            self.add_actions()
-
-    
-
-
-class ActionCard(SimpleCardWidget):
-
-    updateList = Signal(str, bool, name='updateList')
-    playAct = Signal(str, name='playAct')
-    deleteAct = Signal(str, name='deleteAct')
-
-    def __init__(self, act_name, act_config, card_width, customized, parent=None):
-
-        super().__init__(parent)
-        self.setBorderRadius(8)
-        self.setObjectName("ActionCard")
-
-        self.act_name = act_name
-        self.act_config = act_config
-        self.card_width = card_width
-        self.customized = customized
-
-        self.hBoxLayout = QHBoxLayout(self)
-        #self.hBoxLayout.setAlignment(Qt.AlignCenter)
-        self.hBoxLayout.setContentsMargins(10, 5, 10, 5)
-        self.hBoxLayout.setSpacing(0)
-
-        self.setFixedSize(self.card_width, 50)
-        
-        self._init_Card()
-        self.update_info()
-        self.checkBox.clicked.connect(self._checkClicked)
-
-    def _init_Card(self):
-        self.checkBox = CheckBox("")
-        self.checkBox.setFixedSize(20, 20)
-        self.actLabel = BodyLabel()
-        #self.actLabel.setTextInteractionFlags(Qt.TextSelectableByMouse)
-
-        self.commentLabel = BodyLabel()
-
-        self.playBtn = TransparentToolButton(self)
-        self.playBtn.setIcon(FIF.PLAY)
-        self.playBtn.setFixedSize(25,25)
-        self.playBtn.setIconSize(QSize(16,16))
-        self.playBtn.clicked.connect(self._playClicked)
-
-        if self.customized:
-            self.deleteBtn = TransparentToolButton(self)
-            self.deleteBtn.setIcon(FIF.DELETE)
-            self.deleteBtn.setFixedSize(25,25)
-            self.deleteBtn.setIconSize(QSize(16,16))
-            self.deleteBtn.clicked.connect(self._deleteClicked)
-
-        self.hBoxLayout.addWidget(self.checkBox, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        spacerItem1 = QSpacerItem(5, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
-        self.hBoxLayout.addItem(spacerItem1)
-        self.hBoxLayout.addWidget(self.actLabel, 0, Qt.AlignLeft | Qt.AlignVCenter)
-        spacerItem2 = QSpacerItem(30, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-        self.hBoxLayout.addItem(spacerItem2)
-        self.hBoxLayout.addWidget(self.commentLabel, 0, Qt.AlignRight | Qt.AlignVCenter)
-        if self.customized:
-            spacerItem3 = QSpacerItem(20, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
-            self.hBoxLayout.addItem(spacerItem3)
-            self.hBoxLayout.addWidget(self.deleteBtn, 0, Qt.AlignRight | Qt.AlignVCenter)
-            spacerItem4 = QSpacerItem(5, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
-            self.hBoxLayout.addItem(spacerItem4)
-            self.hBoxLayout.addWidget(self.playBtn, 0, Qt.AlignRight | Qt.AlignVCenter)
-        else:
-            spacerItem3 = QSpacerItem(50, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
-            self.hBoxLayout.addItem(spacerItem3)
-            self.hBoxLayout.addWidget(self.playBtn, 0, Qt.AlignRight | Qt.AlignVCenter)
-
-
-    def update_info(self):
-        
-        self.inlist = self.act_config['in_playlist']
-        self.unlocked = self.act_config['unlocked']
-
-        # In-playlist Check
-        self.checkBox.setChecked(self.inlist)
-        if not self.unlocked or self.act_config['special_act']:
-            self.checkBox.setEnabled(False)
-        else:
-            self.checkBox.setEnabled(True)
-
-        # Action name
-        self.actLabel.setText(self.act_name)
-        if not self.unlocked:
-            self.actLabel.setTextColor(QColor(140, 140, 140))
-            self.playBtn.setEnabled(False)
-        else:
-            self.actLabel.setTextColor(QColor(0, 0, 0))
-            self.playBtn.setEnabled(True)
-
-        # Comments
-        comment = self._get_comment()
-        self.commentLabel.setText(comment)
-        self.commentLabel.setTextColor(QColor(140, 140, 140))
-
-
-    
-    def _get_comment(self):
-        if not self.unlocked:
-            return self.tr("Action Locked")
-        
-        hp_type = self.act_config['status_type'][0]
-        if not self.act_config['special_act']:
-            return f"{settings.TIER_NAMES[hp_type]}"
-        else:
-            return self.tr("Special action") + " | " + f"{settings.TIER_NAMES[hp_type]}"
-
-
-    def _checkClicked(self):
-        self.inlist = not self.inlist
-        self.checkBox.setChecked(self.inlist)
-        #self.checkBox.setEnabled(False)
-        self.updateList.emit(self.act_name, self.inlist)
-
-
-    def _playClicked(self):
-        self.playAct.emit(self.act_name)
-
-    def _deleteClicked(self):
-        self.deleteAct.emit(self.act_name)
-
 
 

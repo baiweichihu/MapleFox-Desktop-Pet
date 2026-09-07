@@ -165,3 +165,48 @@ QPushButton:disabled {{
     background-color: {p['hover']};
 }}
 '''
+
+
+def dashboard_qss(dark=None):
+    """Growth 面板（Status / Backpack / Shop）页面 QSS，随主题动态生成
+
+    替代静态 res/icons/Dashboard/qss/light/status_interface.qss，
+    卡片/按钮/输入框等交互组件由 style/panel.py 自绘组件各自负责，
+    这里只负责页面级文本、透明背景与排版。
+    """
+    p = active_palette(dark)
+    return f'''
+/* 滚动区与底层透明，继承 SideNavWindow 的背景 */
+QWidget#scrollWidget,
+QScrollArea,
+QScrollArea::viewport,
+QScrollArea > QWidget > QWidget {{
+    background: transparent;
+    border: none;
+}}
+
+/* 页面标题 */
+QLabel#panelLabel {{
+    font: 600 22px {UI_FONT};
+    color: {p['text']};
+    background-color: transparent;
+}}
+
+/* 文本：正文 / 次要 / 强调 */
+QLabel {{
+    background: transparent;
+    color: {p['text']};
+}}
+BodyLabel,
+StrongBodyLabel {{
+    color: {p['text']};
+}}
+CaptionLabel {{
+    color: {p['textSecondary']};
+}}
+
+/* 物品格子与 Buff 图标里的数字（PetItemWidget / BuffWidget paintEvent 绘制） */
+QPushButton:disabled {{
+    color: {p['textDisabled']};
+}}
+'''

@@ -491,11 +491,9 @@ class SaveInterface(QWidget):
             self.__showSystemNote(self.tr('Updating Save card failed!'), 2)
 
     def __showMessageBox(self, title, content):
-        from qfluentwidgets import MessageBox
-        msg = MessageBox(title, content, self)
-        msg.yesButton.setText(self.tr('OK'))
-        msg.cancelButton.setText(self.tr('Cancel'))
-        return bool(msg.exec())
+        from DyberPet.style.panel import SDialog
+        dlg = SDialog(title, content, self)
+        return bool(dlg.exec())
 
     def __showSystemNote(self, content, type_code):
         from qfluentwidgets import InfoBar, InfoBarPosition

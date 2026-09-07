@@ -3,9 +3,10 @@ import os
 import json
 import random
 
-from qfluentwidgets import (SettingCardGroup, SwitchSettingCard, HyperlinkCard, InfoBar,
-                            ComboBoxSettingCard, ScrollArea, ExpandLayout, InfoBarPosition,
-                            PushButton, TransparentToolButton, MessageBox, LineEdit, BodyLabel)
+from qfluentwidgets import ExpandLayout, BodyLabel
+
+from DyberPet.style.panel import SScrollArea, SLineEdit, SIconButton
+from DyberPet.style.theme import dashboard_qss
 
 from qfluentwidgets import FluentIcon as FIF
 from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QLocale, QSize
@@ -35,7 +36,7 @@ else:
 '''
 
 
-class statusInterface(ScrollArea):
+class statusInterface(SScrollArea):
     """ Character status and logs interface """
     changePet = Signal(name='changePet')
     addBuff2Thread = Signal(dict, name='addBuff2Thread')
@@ -52,18 +53,16 @@ class statusInterface(ScrollArea):
 
         # setting label
         self.headerWidget = QWidget(self)
-        self.headerWidget.setFixedWidth(sizeHintdb[0]-165)
+        self.headerWidget.setFixedWidth(450)
         self.panelLabel = QLabel(self.tr("Status"), self.headerWidget)
         self.panelLabel.setSizePolicy(QSizePolicy.Maximum, self.panelLabel.sizePolicy().verticalPolicy())
         self.panelLabel.adjustSize()
         #self.panelLabel.setFixedWidth(100)
-        self.panelHelp = TransparentToolButton(QIcon(os.path.join(basedir, 'res/icons/question.svg')), self.headerWidget)
-        self.panelHelp.setFixedSize(25,25)
-        self.panelHelp.setIconSize(QSize(25,25))
+        self.panelHelp = SIconButton(QIcon(os.path.join(basedir, 'res/icons/question.svg')), self.headerWidget)
 
         self.usertagLabel = BodyLabel(self.tr("User Name"))
         self.usertagLabel.setSizePolicy(QSizePolicy.Maximum, self.usertagLabel.sizePolicy().verticalPolicy())
-        self.usertagEdit = LineEdit(self)
+        self.usertagEdit = SLineEdit(self)
         self.usertagEdit.setClearButtonEnabled(True)
         self.usertagEdit.setPlaceholderText("")
         self.usertagEdit.setFixedWidth(150)
@@ -95,7 +94,7 @@ class statusInterface(ScrollArea):
     def __initWidget(self):
         #self.resize(1000, 800)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setViewportMargins(0, 270, 0, 20)
+        self.setViewportMargins(0, 258, 0, 16)
         self.setWidget(self.scrollWidget)
         #self.scrollWidget.resize(1000, 800)
         self.setWidgetResizable(True)
@@ -108,17 +107,13 @@ class statusInterface(ScrollArea):
         self.__connectSignalToSlot()
 
     def __initLayout(self):
-        self.headerWidget.move(60, 20)
-        self.StatusCard.move(60, 75)
-        self.BuffCard.move(60, 230)
-
-        # add cards to group
-        #self.ModeGroup.addSettingCard(self.noteStream)
-        #self.ModeGroup.addSettingCard(self.AllowDropCard)
+        self.headerWidget.move(36, 12)
+        self.StatusCard.move(36, 50)
+        self.BuffCard.move(36, 204)
 
         # add setting card group to layout
-        self.expandLayout.setSpacing(28)
-        self.expandLayout.setContentsMargins(70, 30, 70, 0)
+        self.expandLayout.setSpacing(16)
+        self.expandLayout.setContentsMargins(36, 6, 36, 0)
 
         self.expandLayout.addWidget(self.noteStream)
 
@@ -128,9 +123,7 @@ class statusInterface(ScrollArea):
         self.scrollWidget.setObjectName('scrollWidget')
         self.panelLabel.setObjectName('panelLabel')
 
-        theme = 'light' #if isDarkTheme() else 'light'
-        with open(os.path.join(basedir, 'res/icons/Dashboard/qss/', theme, 'status_interface.qss'), encoding='utf-8') as f:
-            self.setStyleSheet(f.read())
+        self.setStyleSheet(dashboard_qss())
 
     def __connectSignalToSlot(self):
         """ connect signal to slot """
@@ -212,18 +205,9 @@ From top to bottom, there are 3 widgets:
         return     
 
     def __showMessageBox(self, title, content, yesText='OK'):
-
-        WarrningMessage = MessageBox(title, content, self)
-        if yesText == 'OK':
-            WarrningMessage.yesButton.setText(self.tr('OK'))
-        else:
-            WarrningMessage.yesButton.setText(yesText)
-        WarrningMessage.cancelButton.setText(self.tr('Cancel'))
-        if WarrningMessage.exec():
-            return True
-        else:
-            #print('Cancel button is pressed')
-            return False
+        from DyberPet.style.panel import SDialog
+        dlg = SDialog(title, content, self, yes_text=self.tr(yesText))
+        return bool(dlg.exec())
         
     def _on_UserTag_changed(self, text):
         settings.usertag_dict[settings.petname] = text

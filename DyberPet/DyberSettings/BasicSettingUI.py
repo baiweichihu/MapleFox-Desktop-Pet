@@ -5,7 +5,7 @@ import os
 from PySide6.QtCore import Qt, Signal
 from PySide6.QtGui import QColor
 from PySide6.QtWidgets import (QWidget, QLabel, QVBoxLayout, QScrollArea,
-                               QPushButton, QColorDialog)
+                               QPushButton)
 
 from qfluentwidgets import isDarkTheme, setThemeColor
 
@@ -240,10 +240,11 @@ class SettingInterface(QWidget):
         settings.save_settings()
 
     def _showColorDialog(self):
-        color = QColorDialog.getColor(
-            QColor(settings.themeColor or settings.DEFAULT_THEME_COL), self)
-        if color.isValid():
-            self.colorChanged(color.name())
+        from qfluentwidgets import ColorDialog
+        color = settings.themeColor or settings.DEFAULT_THEME_COL
+        w = ColorDialog(QColor(color), self.tr('Choose color'), self, enableAlpha=False)
+        w.colorChanged.connect(self.colorChanged)
+        w.exec()
 
     def colorChanged(self, color_str):
         setThemeColor(color_str)

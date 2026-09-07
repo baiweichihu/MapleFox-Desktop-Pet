@@ -12,7 +12,9 @@ from PySide6 import QtGui
 from PySide6.QtCore import Qt, Signal, QPoint, QSize, QObject, QEvent, QModelIndex, QRectF
 from PySide6.QtWidgets import (QApplication, QWidget, QLabel, QPushButton, QHBoxLayout, 
                                QVBoxLayout, QProgressBar, QFrame, QStyleOptionViewItem,
-                               QButtonGroup)
+                               QButtonGroup, QLineEdit)
+
+from DyberPet.style.panel import SDialog
 from PySide6.QtGui import (QPixmap, QImage, QImageReader, QPainter, QBrush, QPen, QColor, QIcon,
                         QFont, QPainterPath, QCursor, QAction)
 
@@ -725,30 +727,23 @@ class simpleStatusBar(QWidget):
 
 
 
-class LineEditDialog(MessageBoxBase):
-    """ Custom message box """
+class LineEditDialog(SDialog):
+    """ 简约输入对话框 """
 
     def __init__(self, title: str, content: str, parent=None):
-        super().__init__(parent)
-        #self.setAttribute(Qt.WA_DeleteOnClose)
-        self.titleLabel = SubtitleLabel(title, self)
-        self.nameLineEdit = LineEdit(self)
+        super().__init__(title, '', parent)
+        self.setAttribute(Qt.WA_DeleteOnClose)
+        self.nameLineEdit = QLineEdit(self)
         self.nameLineEdit.setText(content)
         self.nameLineEdit.setClearButtonEnabled(True)
+        self._contentLayout.addWidget(self.nameLineEdit)
 
-        # add widget to view layout
-        self.viewLayout.addWidget(self.titleLabel)
-        self.viewLayout.addWidget(self.nameLineEdit)
-
-        self.widget.setMinimumWidth(350)
-        self.yesButton.setDisabled(False)
+        self.setFixedWidth(360)
+        self.yesButton.setEnabled(False)
         self.nameLineEdit.textChanged.connect(self._validateName)
 
     def _validateName(self, text):
-        if text:
-            self.yesButton.setEnabled(True)
-        else:
-            self.yesButton.setEnabled(False)
+        self.yesButton.setEnabled(bool(text))
 
 '''
 class LineEditDialog(MaskDialogBase, Ui_SaveNameDialog):

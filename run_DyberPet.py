@@ -11,6 +11,7 @@ from DyberPet.Accessory import DPAccessory
 from PySide6.QtWidgets import QApplication
 from PySide6 import QtCore
 from PySide6.QtCore import Qt, QLocale, QTimer, QDateTime, QDate, Signal, QTime
+from PySide6.QtGui import QIcon
 
 from qfluentwidgets import  FluentTranslator, setThemeColor
 from DyberPet.DyberSettings.DyberControlPanel import ControlMainWindow
@@ -43,6 +44,10 @@ class DyberPetApp(QApplication):
         super(DyberPetApp, self).__init__(*args, **kwargs)
 
         self.setQuitOnLastWindowClosed(False)
+
+        # 应用级图标：所有未单独设置图标的面板（备忘录/提醒/背包/通知等）任务栏统一显示
+        self.setWindowIcon(QIcon(os.path.join(settings.BASEDIR, 'res/icons/SystemPanel.png')))
+
         screens = self.screens()
         primary_screen = self.primaryScreen()
 

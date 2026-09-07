@@ -4,15 +4,14 @@ import json
 import random
 import math
 
-from qfluentwidgets import (InfoBar, ScrollArea, ExpandLayout, PushButton,
-                            TransparentToolButton, SegmentedToggleToolWidget,
-                            MessageBox)
+from qfluentwidgets import ExpandLayout
 
-from qfluentwidgets import FluentIcon as FIF
 from PySide6.QtCore import Qt, Signal, QUrl, QStandardPaths, QLocale, QSize
 from PySide6.QtGui import QDesktopServices, QIcon, QImage
 from PySide6.QtWidgets import QWidget, QLabel, QApplication, QHBoxLayout, QSpacerItem, QSizePolicy
 
+from DyberPet.style.panel import SScrollArea, SButton, SIconButton, SSegmentedToggle
+from DyberPet.style.theme import dashboard_qss
 from .dashboard_widgets import BPStackedWidget, coinWidget, itemTabWidget
 
 import DyberPet.settings as settings
@@ -35,7 +34,7 @@ else:
 '''
 
 
-class backpackInterface(ScrollArea):
+class backpackInterface(SScrollArea):
     """ Backpack interface """
 
     confirmClicked = Signal(int, name='confirmClicked')
@@ -62,14 +61,12 @@ class backpackInterface(ScrollArea):
 
         # Header
         self.headerWidget = QWidget(self)
-        self.headerWidget.setFixedWidth(sizeHintdb[0]-175)
+        self.headerWidget.setFixedWidth(450)
         self.panelLabel = QLabel(self.tr("Backpack"), self.headerWidget)
         self.panelLabel.setSizePolicy(QSizePolicy.Maximum, self.panelLabel.sizePolicy().verticalPolicy())
         self.panelLabel.adjustSize()
         #self.panelLabel.adjustSize() #setFixedWidth(150)
-        self.panelHelp = TransparentToolButton(QIcon(os.path.join(basedir, 'res/icons/question.svg')), self.headerWidget)
-        self.panelHelp.setFixedSize(25,25)
-        self.panelHelp.setIconSize(QSize(25,25))
+        self.panelHelp = SIconButton(QIcon(os.path.join(basedir, 'res/icons/question.svg')), self.headerWidget)
         self.panelHelp.clicked.connect(self._showInstruction)
         self.coinWidget = coinWidget(self.headerWidget)
         self.headerLayout = QHBoxLayout(self.headerWidget)
@@ -88,11 +85,11 @@ class backpackInterface(ScrollArea):
 
         # Navigation and Button Line
         self.header2Widget = QWidget(self)
-        self.header2Widget.setFixedWidth(sizeHintdb[0]-175)
-        self.pivot = SegmentedToggleToolWidget(self.header2Widget)
-        self.confirmButton = PushButton(text = self.tr("Use"),
-                                        parent = self.header2Widget,
-                                        icon = QIcon(os.path.join(basedir, 'res/icons/Dashboard/confirm.svg')))
+        self.header2Widget.setFixedWidth(450)
+        self.pivot = SSegmentedToggle(self.header2Widget)
+        self.confirmButton = SButton(text = self.tr("Use"),
+                                     parent = self.header2Widget,
+                                     icon = QIcon(os.path.join(basedir, 'res/icons/Dashboard/confirm.svg')))
         self.confirmButton.setDisabled(True)
         self.confirmButton.setFixedWidth(120)
         self.header2Layout = QHBoxLayout(self.header2Widget)
@@ -152,7 +149,7 @@ class backpackInterface(ScrollArea):
     def __initWidget(self):
         #self.resize(1000, 800)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.setViewportMargins(0, 125, 0, 20)
+        self.setViewportMargins(0, 108, 0, 16)
         self.setWidget(self.scrollWidget)
         #self.scrollWidget.resize(1000, 800)
         self.setWidgetResizable(True)
@@ -165,12 +162,12 @@ class backpackInterface(ScrollArea):
         self.__connectSignalToSlot()
 
     def __initLayout(self):
-        self.headerWidget.move(60, 20)
-        self.header2Widget.move(60, 80)
+        self.headerWidget.move(36, 12)
+        self.header2Widget.move(36, 60)
 
         # add setting card group to layout
-        self.expandLayout.setSpacing(28)
-        self.expandLayout.setContentsMargins(70, 10, 70, 0)
+        self.expandLayout.setSpacing(16)
+        self.expandLayout.setContentsMargins(36, 6, 36, 0)
 
         self.expandLayout.addWidget(self.stackedWidget)
 
@@ -180,9 +177,7 @@ class backpackInterface(ScrollArea):
         self.scrollWidget.setObjectName('scrollWidget')
         self.panelLabel.setObjectName('panelLabel')
 
-        theme = 'light' #if isDarkTheme() else 'light'
-        with open(os.path.join(basedir, 'res/icons/Dashboard/qss/', theme, 'status_interface.qss'), encoding='utf-8') as f:
-            self.setStyleSheet(f.read())
+        self.setStyleSheet(dashboard_qss())
 
     def __connectSignalToSlot(self):
         """ connect signal to slot """
@@ -226,18 +221,9 @@ If there is any item in the first cell of the consumable item tab, this item wil
         return     
 
     def __showMessageBox(self, title, content, yesText='OK'):
-
-        WarrningMessage = MessageBox(title, content, self)
-        if yesText == 'OK':
-            WarrningMessage.yesButton.setText(self.tr('OK'))
-        else:
-            WarrningMessage.yesButton.setText(yesText)
-        WarrningMessage.cancelButton.setText(self.tr('Cancel'))
-        if WarrningMessage.exec():
-            return True
-        else:
-            #print('Cancel button is pressed')
-            return False
+        from DyberPet.style.panel import SDialog
+        dlg = SDialog(title, content, self, yes_text=self.tr(yesText))
+        return bool(dlg.exec())
 
     def refresh_bag(self):
         # drop rate

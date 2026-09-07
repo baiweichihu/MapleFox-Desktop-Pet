@@ -4,13 +4,13 @@
 完全脱离 qfluentwidgets 组件，纯 PySide6 + QSS 自绘。
 """
 from PySide6.QtCore import (Qt, Signal, QPoint, QSize, QPointF, QRectF,
-                            QPropertyAnimation, QEasingCurve, QAbstractAnimation)
-from PySide6.QtGui import QIcon, QColor, QPainter, QPen
+                            QPropertyAnimation, QEasingCurve, QAbstractAnimation, QTimer)
+from PySide6.QtGui import QIcon, QColor, QPainter, QPen, QFont, QPixmap
 from PySide6.QtWidgets import (QWidget, QFrame, QVBoxLayout, QHBoxLayout, QLabel,
                                QStackedWidget, QPushButton, QCheckBox, QSlider,
                                QComboBox, QLineEdit, QListWidget, QListWidgetItem,
-                               QScrollBar, QScrollArea, QApplication,
-                               QGraphicsDropShadowEffect)
+                               QScrollBar, QScrollArea, QApplication, QDialog,
+                               QGraphicsDropShadowEffect, QSpinBox, QToolButton)
 
 from qfluentwidgets import isDarkTheme
 
@@ -24,7 +24,7 @@ except ImportError:
 
 _SHADOW = 16          # 窗口阴影留白
 _PANEL_RADIUS = 12    # 窗口圆角
-_NAV_WIDTH = 200      # 导航栏宽度
+_NAV_WIDTH = 160      # 导航栏宽度
 _NAV_ITEM_H = 40      # 导航项高度
 
 
@@ -798,3 +798,501 @@ class SScrollArea(QScrollArea):
         self._vAni.setEndValue(target)
         self._vAni.start()
         e.accept()
+
+
+# ============================================================
+#    简约对话框（替代 qfluentwidgets MessageBox / 原生 QMessageBox）
+# ============================================================
+
+class SDialog(QDialog):
+    """简约对话框：白底圆角卡 + 标题 + 内容 + 暖橙主按钮 + 灰色取消"""
+
+    def __init__(self, title, content, parent=None, yes_text=None, cancel_text=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.Dialog)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setModal(True)
+        self.setFixedWidth(420)
+
+        # 阴影
+        shadow = QGraphicsDropShadowEffect(self)
+        shadow.setBlurRadius(24)
+        shadow.setOffset(0, 6)
+        shadow.setColor(QColor(0, 0, 0, 36))
+        self.setGraphicsEffect(shadow)
+
+        title_lbl = QLabel(title, self)
+        title_lbl.setObjectName('sDialogTitle')
+        f = title_lbl.font()
+        f.setPointSize(14)
+        f.setWeight(QFont.DemiBold)
+        title_lbl.setFont(f)
+
+        # 内容区：子类可向 _contentLayout 插入自定义控件
+        self._contentLayout = QVBoxLayout()
+        self._contentLayout.setSpacing(6)
+        if content:
+            content_lbl = QLabel(content, self)
+            content_lbl.setObjectName('sDialogContent')
+            content_lbl.setWordWrap(True)
+            content_lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
+            self._contentLayout.addWidget(content_lbl)
+
+        self.yesButton = QPushButton(yes_text or self.tr('OK'), self)
+        self.yesButton.setObjectName('sDialogYes')
+        self.yesButton.setCursor(Qt.PointingHandCursor)
+        self.yesButton.clicked.connect(self.accept)
+
+        self.cancelButton = QPushButton(cancel_text or self.tr('Cancel'), self)
+        self.cancelButton.setObjectName('sDialogCancel')
+        self.cancelButton.setCursor(Qt.PointingHandCursor)
+        self.cancelButton.clicked.connect(self.reject)
+
+        btn_row = QHBoxLayout()
+        btn_row.setSpacing(8)
+        btn_row.addStretch(1)
+        btn_row.addWidget(self.cancelButton)
+        btn_row.addWidget(self.yesButton)
+
+        v = QVBoxLayout(self)
+        v.setContentsMargins(28, 22, 28, 20)
+        v.setSpacing(12)
+        v.addWidget(title_lbl)
+        v.addLayout(self._contentLayout)
+        v.addLayout(btn_row)
+
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QDialog {{ background: transparent; }}
+            QLabel#sDialogTitle {{ color: {p['text']}; background: transparent; }}
+            QLabel#sDialogContent {{
+                color: {p['text']};
+                font-size: 13px;
+                line-height: 1.5;
+                background: transparent;
+            }}
+            QPushButton#sDialogYes {{
+                background: {p['primary']}; color: {p['onPrimary']};
+                border: none; border-radius: 6px; padding: 8px 22px;
+            }}
+            QPushButton#sDialogYes:hover {{ background: {p['primaryHover']}; }}
+            QPushButton#sDialogYes:pressed {{ background: {p['primaryPressed']}; }}
+            QPushButton#sDialogCancel {{
+                background: {p['card']}; color: {p['text']};
+                border: 1px solid {p['border']}; border-radius: 6px; padding: 8px 22px;
+            }}
+            QPushButton#sDialogCancel:hover {{ background: {p['hover']}; }}
+            QSpinBox {{
+                background: {p['card']}; color: {p['text']};
+                border: 1px solid {p['border']}; border-radius: 6px;
+                padding: 6px 10px;
+            }}
+            QSpinBox:focus {{ border: 1px solid {p['primary']}; }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 22px; border: none;
+                background: {p['hover']}; border-left: 1px solid {p['border']};
+            }}
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                background: {p['active']};
+            }}
+            QLineEdit {{
+                background: {p['card']}; color: {p['text']};
+                border: 1px solid {p['border']}; border-radius: 6px;
+                padding: 6px 10px;
+            }}
+            QLineEdit:focus {{ border: 1px solid {p['primary']}; }}
+        ''')
+
+    def paintEvent(self, e):
+        p = QPainter(self)
+        p.setRenderHint(QPainter.Antialiasing)
+        pal = active_palette()
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        p.setPen(QPen(QColor(pal['border']), 1))
+        p.setBrush(QColor(pal['card']))
+        p.drawRoundedRect(rect, 8, 8)
+        p.end()
+
+
+# ============================================================
+#    Growth / Dashboard 自绘组件
+#    用于替代 growth 面板中残留的 qfluentwidgets 组件
+# ============================================================
+
+class SCardWidget(QFrame):
+    """简约圆角卡片（替代 qfluentwidgets SimpleCardWidget）"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName('sCard')
+        self._radius = 10
+        self._applyStyle()
+
+    def setBorderRadius(self, radius):
+        self._radius = radius
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        # 用类选择器 .SCardWidget（Qt QSS 类选择器可匹配子类），
+        # 避免子类覆盖 objectName 后样式失效
+        self.setStyleSheet(f'''
+            .SCardWidget {{
+                background-color: {p['card']};
+                border: 1px solid {p['border']};
+                border-radius: {self._radius}px;
+            }}
+        ''')
+
+
+class SButton(QPushButton):
+    """简约按钮（primary=暖橙实底；默认白底描边）"""
+
+    def __init__(self, text='', primary=False, icon=None, parent=None):
+        super().__init__(text, parent)
+        self._primary = primary
+        if icon is not None:
+            # 兼容 QPixmap / str 路径 / QIcon
+            if not isinstance(icon, QIcon):
+                icon = QIcon(icon)
+            self.setIcon(icon)
+        self.setCursor(Qt.PointingHandCursor)
+        self._applyStyle()
+
+    def setPrimary(self, primary):
+        self._primary = primary
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        if self._primary:
+            self.setStyleSheet(f'''
+                QPushButton {{
+                    background-color: {p['primary']}; color: {p['onPrimary']};
+                    border: none; border-radius: 6px; padding: 6px 14px;
+                    font: 600 13px {UI_FONT};
+                }}
+                QPushButton:hover {{ background-color: {p['primaryHover']}; }}
+                QPushButton:pressed {{ background-color: {p['primaryPressed']}; }}
+                QPushButton:disabled {{
+                    background-color: {p['active']}; color: {p['textDisabled']};
+                }}
+            ''')
+        else:
+            self.setStyleSheet(f'''
+                QPushButton {{
+                    background-color: {p['card']}; color: {p['text']};
+                    border: 1px solid {p['border']}; border-radius: 6px; padding: 6px 14px;
+                    font: 13px {UI_FONT};
+                }}
+                QPushButton:hover {{ background-color: {p['hover']}; border-color: {p['textSecondary']}; }}
+                QPushButton:pressed {{ background-color: {p['active']}; }}
+                QPushButton:disabled {{ color: {p['textDisabled']}; background-color: {p['hover']}; }}
+            ''')
+
+
+class SIconButton(QPushButton):
+    """简约图标按钮（替代 TransparentToolButton）"""
+
+    def __init__(self, icon=None, parent=None, size=25):
+        super().__init__(parent)
+        self.setFixedSize(size, size)
+        self.setIconSize(QSize(int(size * 0.56), int(size * 0.56)))
+        if icon is not None:
+            self.setIcon(icon)
+        self.setCursor(Qt.PointingHandCursor)
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QPushButton {{
+                background: transparent; border: none; border-radius: 6px;
+            }}
+            QPushButton:hover {{ background-color: {p['hover']}; }}
+            QPushButton:pressed {{ background-color: {p['active']}; }}
+        ''')
+
+
+class SSegmentedToggle(QWidget):
+    """简约分段切换（替代 qfluentwidgets SegmentedToggleToolWidget）"""
+    currentChanged = Signal(int)
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName('sSegment')
+        self._keys = []
+        self._buttons = []
+        self._onClicks = {}
+        self._layout = QHBoxLayout(self)
+        self._layout.setContentsMargins(3, 3, 3, 3)
+        self._layout.setSpacing(3)
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QWidget#sSegment {{
+                background-color: {p['hover']};
+                border: 1px solid {p['border']};
+                border-radius: 8px;
+            }}
+        ''')
+        for btn in self._buttons:
+            self._applyItemStyle(btn)
+
+    def _applyItemStyle(self, btn):
+        p = active_palette()
+        btn.setStyleSheet(f'''
+            QPushButton {{
+                background: transparent; border: none; border-radius: 6px;
+                padding: 0 10px; min-height: 26px;
+            }}
+            QPushButton:hover {{ background-color: {p['active']}; }}
+            QPushButton:checked {{
+                background-color: {p['card']};
+                border: 1px solid {p['border']};
+            }}
+        ''')
+
+    def addItem(self, routeKey, onClick=None, icon=None, text=None):
+        btn = QPushButton(self)
+        btn.setCheckable(True)
+        btn.setCursor(Qt.PointingHandCursor)
+        if text is not None:
+            btn.setText(text)
+        if icon is not None:
+            btn.setIcon(icon)
+        btn.clicked.connect(lambda _=False, k=routeKey: self._select(k))
+        self._keys.append(routeKey)
+        self._buttons.append(btn)
+        self._onClicks[routeKey] = onClick
+        self._layout.addWidget(btn)
+        self._applyItemStyle(btn)
+        return btn
+
+    def _select(self, routeKey):
+        self.setCurrentItem(routeKey)
+        cb = self._onClicks.get(routeKey)
+        if cb is not None:
+            cb()
+
+    def setCurrentIndex(self, index):
+        for i, btn in enumerate(self._buttons):
+            btn.setChecked(i == index)
+        self.currentChanged.emit(index)
+
+    def setCurrentItem(self, routeKey):
+        if routeKey in self._keys:
+            self.setCurrentIndex(self._keys.index(routeKey))
+
+    def currentIndex(self):
+        for i, btn in enumerate(self._buttons):
+            if btn.isChecked():
+                return i
+        return -1
+
+    def currentItem(self):
+        i = self.currentIndex()
+        return self._keys[i] if i >= 0 else ''
+
+
+class SPillButton(QPushButton):
+    """简约胶囊标签按钮（checkable，替代 PillPushButton）"""
+
+    def __init__(self, text='', parent=None):
+        super().__init__(text, parent)
+        self.setCheckable(True)
+        self.setCursor(Qt.PointingHandCursor)
+        self.setFixedHeight(25)
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QPushButton {{
+                background-color: {p['card']}; color: {p['text']};
+                border: 1px solid {p['border']}; border-radius: 12px;
+                padding: 2px 12px; font: 13px {UI_FONT};
+            }}
+            QPushButton:hover {{ border-color: {p['textSecondary']}; }}
+            QPushButton:checked {{
+                background-color: {p['primary']}; border-color: {p['primary']};
+                color: {p['onPrimary']};
+            }}
+        ''')
+
+
+class SSearchLineEdit(QLineEdit):
+    """简约搜索框（自带搜索 / 清除图标按钮，替代 SearchLineEdit）"""
+    searchSignal = Signal(str)
+    clearSignal = Signal()
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setObjectName('sLineEdit')
+        self.setClearButtonEnabled(False)
+        self._applyStyle()
+
+        self.searchButton = QToolButton(self)
+        self.clearButton = QToolButton(self)
+        for btn in (self.searchButton, self.clearButton):
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedSize(22, 22)
+        self.clearButton.hide()
+
+        try:
+            import qtawesome as qta
+            c = '#8A919F'
+            self.searchButton.setIcon(qta.icon('fa5s.search', color=c))
+            self.clearButton.setIcon(qta.icon('fa5s.times-circle', color=c))
+        except Exception:
+            pass
+        self.searchButton.setIconSize(QSize(14, 14))
+        self.clearButton.setIconSize(QSize(14, 14))
+
+        self.textChanged.connect(self._onTextChanged)
+        self.searchButton.clicked.connect(self._search)
+        self.clearButton.clicked.connect(self._clear)
+
+    def _applyStyle(self):
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QLineEdit#sLineEdit {{
+                background: {p['card']}; color: {p['text']};
+                border: 1px solid {p['border']}; border-radius: 6px;
+                padding: 4px 8px; font: 13px {UI_FONT};
+            }}
+            QLineEdit#sLineEdit:focus {{ border-color: {p['primary']}; }}
+        ''')
+
+    def _onTextChanged(self, text):
+        self.clearButton.setVisible(bool(text))
+
+    def _search(self):
+        self.searchSignal.emit(self.text())
+
+    def _clear(self):
+        self.clear()
+        self.clearButton.hide()
+        self.clearSignal.emit()
+
+    def resizeEvent(self, e):
+        super().resizeEvent(e)
+        x = self.width() - self.searchButton.width() - 6
+        self.clearButton.move(x - self.clearButton.width() - 2, 2)
+        self.searchButton.move(self.width() - self.searchButton.width() - 6, 2)
+        self.setTextMargins(4, 0, 46, 0)
+
+
+class SSpinBox(QSpinBox):
+    """简约数字输入框（替代 qfluentwidgets SpinBox）"""
+
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setButtonSymbols(QSpinBox.UpDownArrows)
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QSpinBox {{
+                background-color: {p['card']}; color: {p['text']};
+                border: 1px solid {p['border']}; border-radius: 6px;
+                padding: 4px 8px; font: 13px {UI_FONT};
+            }}
+            QSpinBox:focus {{ border-color: {p['primary']}; }}
+            QSpinBox::up-button, QSpinBox::down-button {{
+                width: 22px; border: none;
+                background: {p['hover']}; border-left: 1px solid {p['border']};
+            }}
+            QSpinBox::up-button:hover, QSpinBox::down-button:hover {{
+                background: {p['active']};
+            }}
+        ''')
+
+
+class SToast(QFrame):
+    """简约提示浮层（替代 qfluentwidgets InfoBar，用于轻量提示）"""
+
+    def __init__(self, text, icon_name='fa5s.exclamation-circle', parent=None):
+        super().__init__(parent)
+        self.setWindowFlags(Qt.FramelessWindowHint | Qt.ToolTip)
+        self.setAttribute(Qt.WA_TranslucentBackground)
+
+        self._iconLabel = QLabel(self)
+        self._iconLabel.setFixedSize(16, 16)
+        self._iconLabel.setAlignment(Qt.AlignCenter)
+        try:
+            import qtawesome as qta
+            self._iconLabel.setPixmap(qta.icon(icon_name, color='#E8874A').pixmap(16, 16))
+        except Exception:
+            pass
+
+        self._textLabel = QLabel(text, self)
+        self._textLabel.setWordWrap(True)
+        self._textLabel.setAlignment(Qt.AlignVCenter | Qt.AlignLeft)
+
+        row = QHBoxLayout(self)
+        row.setContentsMargins(16, 10, 16, 10)
+        row.setSpacing(8)
+        row.addWidget(self._iconLabel)
+        row.addWidget(self._textLabel)
+
+        self._timer = QTimer(self)
+        self._timer.setSingleShot(True)
+        self._timer.timeout.connect(self._fadeOut)
+        self._applyStyle()
+
+    def _applyStyle(self):
+        p = active_palette()
+        self.setStyleSheet(f'''
+            QFrame {{
+                background-color: {p['card']};
+                border: 1px solid {p['border']};
+                border-radius: 8px;
+            }}
+            QLabel {{
+                background: transparent; color: {p['text']};
+                font: 13px {UI_FONT};
+            }}
+        ''')
+
+    def showAt(self, duration=3000):
+        self.adjustSize()
+        self.setFixedWidth(min(self.width() + 8, 380))
+        # 定位在宿主窗口底部中央（SToast 自身是顶层窗口，需用父窗口几何）
+        parent = self.parentWidget()
+        if parent is not None:
+            g = parent.window().frameGeometry()
+            self.move(g.center().x() - self.width() // 2,
+                      g.bottom() - self.height() - 48)
+        self.show()
+        self.raise_()
+        self._timer.start(duration)
+
+    def _fadeOut(self):
+        self._timer.stop()
+        ani = QPropertyAnimation(self, b'windowOpacity', self)
+        ani.setDuration(200)
+        ani.setEndValue(0.0)
+        ani.finished.connect(self.close)
+        ani.start()
+
+    @staticmethod
+    def warning(text, parent=None, duration=3000):
+        t = SToast(text, 'fa5s.exclamation-triangle', parent)
+        t.showAt(duration)
+        return t
+
+    @staticmethod
+    def success(text, parent=None, duration=3000):
+        t = SToast(text, 'fa5s.check-circle', parent)
+        t.showAt(duration)
+        return t
+
+    @staticmethod
+    def error(text, parent=None, duration=3000):
+        t = SToast(text, 'fa5s.times-circle', parent)
+        t.showAt(duration)
+        return t
