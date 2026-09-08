@@ -1,4 +1,5 @@
 import sys
+import os
 from sys import platform
 import time
 import math
@@ -20,6 +21,7 @@ from qfluentwidgets import FluentIcon as FIF
 from DyberPet.custom_widgets import SystemTray
 from .custom_roundmenu import RoundMenu
 from .extra_windows import MemoWindow, ReminderWindow
+from DyberPet.chat_window import ChatWindow
 
 from DyberPet.conf import *
 from DyberPet.utils import *
@@ -734,6 +736,10 @@ class PetWidget(QWidget):
         self.reminder_window.close_reminder.connect(self.show_reminder)
         self.reminder_window.remind_trigger.connect(lambda text: self.register_notification('system', text))
 
+        # 对话窗口（本地 LLM）
+        self.chat_window = ChatWindow()
+        self.chat_window.close_chat.connect(self.show_chat)
+
     '''
     def _init_Inventory(self):
         self.items_data = ItemData(HUNGERSTR=settings.HUNGERSTR, FAVORSTR=settings.FAVORSTR)
@@ -892,8 +898,8 @@ class PetWidget(QWidget):
         # 互动
         interact_menu = RoundMenu(self.tr('Interact'))
         interact_menu.setIcon(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')))
-        chat_action = Action(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')), self.tr('Chat'))
-        chat_action.setEnabled(False)  # LLM 对话预留（P1-1 接入后启用）
+        chat_action = Action(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')), self.tr('Chat'),
+                             triggered=self.show_chat)
         interact_menu.addActions([
             chat_action,
             Action(QIcon(os.path.join(basedir, 'res/icons/Dialogue_icon.png')), self.tr('Memo'), triggered=self.show_memo),
@@ -1424,14 +1430,34 @@ class PetWidget(QWidget):
         self.stop_thread('Interaction')
         self.stop_thread("Scheduler")
         self.stopAllThread.emit()
+        # 对话窗口（ChatWindow）只 hide/close，不会自行销毁；若在此不显式停掉
+        # 它的 LLM worker 线程，sys.exit() 时线程仍在跑，Qt 会在对象回收时报
+        # 'QThread: Destroyed while thread is still running'。
+        try:
+            self.chat_window._cleanup_thread()
+        except Exception:
+            pass
         self.close()
-        sys.exit()
+        # 不再走 sys.exit() 的 Python/Qt 正常析构路径。
+        # 实测：部分阻塞型 QThread（如动画 run）无法被 terminate() 真正杀死，
+        # 只要退出时还有 QThread 在跑，解释器析构阶段就会报
+        # 'QThread: Destroyed while thread is still running'（或直接崩溃）。
+        # os._exit 跳过析构阶段，彻底避免该类告警/崩溃。
+        os._exit(0)
 
     def stop_thread(self, module_name):
-        self.workers[module_name].kill()
-        self.threads[module_name].terminate()
-        self.threads[module_name].wait()
-        #self.threads[module_name].wait()
+        try:
+            self.workers[module_name].kill()
+        except Exception:
+            pass
+        # 阻塞型 run() 线程依赖 kill 标志协作退出（terminate 不可靠，只作兜底）。
+        thread = self.threads.get(module_name)
+        if thread is None:
+            return
+        thread.quit()
+        if not thread.wait(4000):
+            thread.terminate()
+            thread.wait(1000)
 
     def follow_mouse_act(self):
         sender = self.sender()
@@ -1518,6 +1544,14 @@ class PetWidget(QWidget):
             self.reminder_window.move(max(self.current_screen.topLeft().y(), self.pos().x()-self.reminder_window.width()//2),
                                       max(self.current_screen.topLeft().y(), self.pos().y()-self.reminder_window.height()))
             self.reminder_window.show()
+
+    def show_chat(self):
+        if self.chat_window.isVisible():
+            self.chat_window.hide()
+        else:
+            self.chat_window.move(max(self.current_screen.topLeft().y(), self.pos().x()-self.chat_window.width()//2),
+                                  max(self.current_screen.topLeft().y(), self.pos().y()-self.chat_window.height()))
+            self.chat_window.show()
 
     ''' Reminder function deleted from v0.3.7
     def run_remind(self, task_type, hs=0, ms=0, texts=''):

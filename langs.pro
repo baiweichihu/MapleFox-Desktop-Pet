@@ -7,6 +7,7 @@ SOURCES += DyberPet/DyberSettings/DyberControlPanel.py \
         DyberPet/DyberPet.py \
         DyberPet/modules.py \
         DyberPet/extra_windows.py \
+        DyberPet/chat_window.py \
         DyberPet/Notification.py \
         DyberPet/Dashboard/DashboardUI.py \
         DyberPet/Dashboard/buffModule.py \

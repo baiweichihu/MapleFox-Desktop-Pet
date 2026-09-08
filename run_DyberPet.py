@@ -10,7 +10,7 @@ from DyberPet.Accessory import DPAccessory
 
 from PySide6.QtWidgets import QApplication
 from PySide6 import QtCore
-from PySide6.QtCore import Qt, QLocale, QTimer, QDateTime, QDate, Signal, QTime
+from PySide6.QtCore import Qt, QLocale, QTimer, QDateTime, QDate, Signal, QTime, QtMsgType, qInstallMessageHandler
 from PySide6.QtGui import QIcon
 
 from qfluentwidgets import  FluentTranslator, setThemeColor
@@ -37,6 +37,22 @@ import DyberPet.settings as settings
 # pyinstaller --windowed --icon 000.icns --add-data="res:res" --add-data="DyberPet:DyberPet" --hidden-import="pynput.mouse._darwin" --hidden-import="pynput.keyboard._darwin" run_DyberPet.py
 
 
+def _qt_msg_handler(mode, context, message):
+    """Qt 消息过滤器：丢弃 libpng 的 iCCP/sRGB profile 噪音。
+
+    仓库内 94 张 PNG 均已检测无 iCCP chunk，该警告来自 Qt 运行时解码的
+    第三方资源（qfluentwidgets / 平台插件等），无害且无法在仓库内根治。
+    Qt 的 PNG 插件把 libpng 警告经 qWarning 转发到这里，故只在此处屏蔽，
+    其余 Qt 消息照常打印到 stderr。
+    """
+    if mode == QtMsgType.QtWarningMsg:
+        low = message.lower()
+        if 'libpng warning' in low and ('iccp' in low or 'srgb profile' in low):
+            return
+    sys.stderr.write(message + '\n')
+    sys.stderr.flush()
+
+
 class DyberPetApp(QApplication):
     date_changed = Signal(QDate)
 
@@ -44,6 +60,9 @@ class DyberPetApp(QApplication):
         super(DyberPetApp, self).__init__(*args, **kwargs)
 
         self.setQuitOnLastWindowClosed(False)
+
+        # 尽早接管 Qt 消息输出，屏蔽 libpng 的 iCCP 噪音
+        qInstallMessageHandler(_qt_msg_handler)
 
         # 应用级图标：所有未单独设置图标的面板（备忘录/提醒/背包/通知等）任务栏统一显示
         self.setWindowIcon(QIcon(os.path.join(settings.BASEDIR, 'res/icons/SystemPanel.png')))

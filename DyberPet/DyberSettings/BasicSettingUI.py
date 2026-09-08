@@ -12,7 +12,7 @@ from qfluentwidgets import isDarkTheme, setThemeColor
 import DyberPet.settings as settings
 from DyberPet.style import palette
 from DyberPet.style.theme import active_palette, UI_FONT
-from DyberPet.style.panel import SettingRow, SSwitch, SSlider, SComboBox, SScrollArea
+from DyberPet.style.panel import SettingRow, SSwitch, SSlider, SComboBox, SScrollArea, SLineEdit
 
 basedir = settings.BASEDIR
 
@@ -106,6 +106,17 @@ class SettingInterface(QWidget):
         self._layout.addWidget(row)
         return row
 
+    def _makeTextRow(self, icon, title, content, text, slot):
+        row = SettingRow(icon, title, content, self._body)
+        edit = SLineEdit()
+        edit.setFixedWidth(220)
+        edit.setText(text)
+        edit.editingFinished.connect(lambda: slot(edit.text()))
+        row.lineEdit = edit
+        row.addWidget(edit)
+        self._layout.addWidget(row)
+        return row
+
     def _makeColorRow(self):
         row = SettingRow('fa5s.palette', self.tr('Theme color'),
                          self.tr('Change the theme color of you application'), self._body)
@@ -161,6 +172,33 @@ class SettingInterface(QWidget):
             'fa5s.comment', self.tr('Dialogue Bubble'),
             self.tr('When turned on, various kinds of bubbles will pop-up above the pet'),
             settings.bubble_on, self._AllowBubbleChanged)
+
+        # Chat (Local LLM)
+        self._addSectionTitle(self.tr('Chat'))
+        self.LLMCard = self._makeSwitch(
+            'fa5s.comment', self.tr('Local Chat'),
+            self.tr('Talk with MapleFox through a local LLM (Ollama)'),
+            settings.llm_enabled, self._LLMEnabledChanged)
+        self.LLMBaseUrlCard = self._makeTextRow(
+            'fa5s.link', self.tr('Service URL'),
+            self.tr('OpenAI-compatible endpoint, Ollama uses port 11434'),
+            settings.llm_base_url, self._LLMBaseUrlChanged)
+        self.LLMModelCard = self._makeTextRow(
+            'fa5s.cube', self.tr('Model'),
+            self.tr('Model name provided by the service'),
+            settings.llm_model, self._LLMModelChanged)
+        self.LLMTemperatureCard = self._makeSlider(
+            'fa5s.thermometer-half', self.tr('Creativity'),
+            self.tr('Higher values make replies more varied'),
+            0, 100, int(settings.llm_temperature * 100), self._LLMTemperatureChanged, sstep=0.01)
+        self.LLMMaxTokensCard = self._makeSlider(
+            'fa5s.text-width', self.tr('Reply Length'),
+            self.tr('Maximum number of tokens in one reply'),
+            32, 320, int(settings.llm_max_tokens), self._LLMMaxTokensChanged, sstep=1)
+        self.LLMHistoryCard = self._makeSlider(
+            'fa5s.history', self.tr('Memory Rounds'),
+            self.tr('How many recent rounds MapleFox keeps in mind'),
+            1, 20, int(settings.llm_history_rounds), self._LLMHistoryChanged, sstep=1)
 
         # Personalization
         self._addSectionTitle(self.tr('Personalization'))
@@ -237,6 +275,32 @@ class SettingInterface(QWidget):
 
     def _AllowBubbleChanged(self, isChecked):
         settings.bubble_on = isChecked
+        settings.save_settings()
+
+    def _LLMEnabledChanged(self, isChecked):
+        settings.llm_enabled = isChecked
+        settings.save_settings()
+
+    def _LLMBaseUrlChanged(self, text):
+        text = (text or '').strip()
+        settings.llm_base_url = text or 'http://127.0.0.1:11434/v1'
+        settings.save_settings()
+
+    def _LLMModelChanged(self, text):
+        text = (text or '').strip()
+        settings.llm_model = text or 'maplefox-4b'
+        settings.save_settings()
+
+    def _LLMTemperatureChanged(self, value):
+        settings.llm_temperature = value * 0.01
+        settings.save_settings()
+
+    def _LLMMaxTokensChanged(self, value):
+        settings.llm_max_tokens = int(value)
+        settings.save_settings()
+
+    def _LLMHistoryChanged(self, value):
+        settings.llm_history_rounds = int(value)
         settings.save_settings()
 
     def _showColorDialog(self):

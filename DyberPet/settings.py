@@ -208,7 +208,9 @@ def init_settings():
 
     global gravity, fixdragspeedx, fixdragspeedy, tunable_scale, scale_dict, volume, \
            language_code, on_top_hint, default_pet, defaultAct, themeColor, \
-           toaster_on, usertag_dict, auto_lock, bubble_on
+           toaster_on, usertag_dict, auto_lock, bubble_on, \
+           llm_enabled, llm_base_url, llm_model, llm_api_key, llm_temperature, \
+           llm_max_tokens, llm_history_rounds, llm_keep_alive
 
     # check json file integrity
     try:
@@ -290,6 +292,29 @@ def init_settings():
         bubble_on = data_params.get('bubble_on', True)
         #=====================================================
 
+        # v0.7.0 Local LLM chat (Ollama / OpenAI-compatible)
+        llm_enabled = data_params.get('llm_enabled', True)
+        llm_base_url = data_params.get('llm_base_url', 'http://127.0.0.1:11434/v1')
+        llm_model = data_params.get('llm_model', 'maplefox-4b')
+        llm_api_key = data_params.get('llm_api_key', '')
+        llm_keep_alive = data_params.get('llm_keep_alive', '-1')
+        try:
+            llm_temperature = float(data_params.get('llm_temperature', 0.85))
+        except (TypeError, ValueError):
+            llm_temperature = 0.85
+        try:
+            llm_max_tokens = int(data_params.get('llm_max_tokens', 160))
+        except (TypeError, ValueError):
+            llm_max_tokens = 160
+        try:
+            llm_history_rounds = int(data_params.get('llm_history_rounds', 10))
+        except (TypeError, ValueError):
+            llm_history_rounds = 10
+        llm_temperature = max(0.0, min(2.0, llm_temperature))
+        llm_max_tokens = max(16, min(1024, llm_max_tokens))
+        llm_history_rounds = max(1, min(50, llm_history_rounds))
+        #=====================================================
+
     else:
         fixdragspeedx, fixdragspeedy = 1.0, 1.0
         gravity = 0.1
@@ -309,13 +334,23 @@ def init_settings():
         bubble_on = True
         usertag_dict = {}
         auto_lock = False
+        llm_enabled = True
+        llm_base_url = 'http://127.0.0.1:11434/v1'
+        llm_model = 'maplefox-4b'
+        llm_api_key = ''
+        llm_temperature = 0.85
+        llm_max_tokens = 160
+        llm_history_rounds = 10
+        llm_keep_alive = '-1'
     check_locale()
     save_settings()
 
 def save_settings():
     global file_path, set_fall, gravity, fixdragspeedx, fixdragspeedy, scale_dict, volume, \
            language_code, on_top_hint, default_pet, defaultAct, themeColor, \
-           toaster_on, usertag_dict, auto_lock, bubble_on
+           toaster_on, usertag_dict, auto_lock, bubble_on, \
+           llm_enabled, llm_base_url, llm_model, llm_api_key, llm_temperature, \
+           llm_max_tokens, llm_history_rounds, llm_keep_alive
 
     data_js = {'gravity':gravity,
                'set_fall': set_fall,
@@ -331,7 +366,15 @@ def save_settings():
                'defaultAct':defaultAct,
                'language_code':language_code,
                'themeColor':themeColor,
-               'auto_lock':auto_lock
+               'auto_lock':auto_lock,
+               'llm_enabled':llm_enabled,
+               'llm_base_url':llm_base_url,
+               'llm_model':llm_model,
+               'llm_api_key':llm_api_key,
+               'llm_temperature':llm_temperature,
+               'llm_max_tokens':llm_max_tokens,
+               'llm_history_rounds':llm_history_rounds,
+               'llm_keep_alive':llm_keep_alive
                }
 
     with open(file_path, 'w', encoding='utf-8') as f:
